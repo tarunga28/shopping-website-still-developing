@@ -14,6 +14,8 @@ import {
 } from "@/lib/catalog-rules";
 import { NotFoundError } from "@/lib/errors";
 import { escapeLike, sanitizeSearchQuery } from "@/lib/slug";
+import { getPurchasableVariantBySku } from "@/services/catalog/purchasable.service";
+import { publicProductCondition } from "@/services/catalog/visibility";
 
 export interface CatalogListQuery {
   q?: string | null;
@@ -86,7 +88,8 @@ function orderBy(sort: CatalogSort) {
 function filters(query: CatalogListQuery): SQL | undefined {
   const parts: SQL[] = [];
   if (query.scope === "public") {
-    parts.push(eq(products.status, "ACTIVE"));
+    // Shared visibility rules: status, price, image, variant and artwork state.
+    parts.push(publicProductCondition());
   } else if (query.status && isProductStatus(query.status)) {
     parts.push(eq(products.status, query.status));
   }
@@ -280,51 +283,10 @@ export async function listCatalog(query: CatalogListQuery): Promise<CatalogListP
   };
 }
 
-export async function listPublicFacets(): Promise<{ colors: string[]; sizes: string[] }> {
-  const [colorRows, sizeRows] = await Promise.all([
-    db.execute<{ color: string }>(sql`
-      select distinct v.color as color
-      from product_variants v
-      join products p on p.id = v.product_id
-      where p.status = 'ACTIVE' and v.color is not null
-      order by v.color
-      limit 40
-    `),
-    db.execute<{ size: string }>(sql`
-      select distinct v.size as size
-      from product_variants v
-      join products p on p.id = v.product_id
-      where p.status = 'ACTIVE' and v.size is not null
-      order by v.size
-      limit 20
-    `),
-  ]);
-  return {
-    colors: colorRows.rows.map((row) => row.color).filter(Boolean),
-    sizes: sizeRows.rows.map((row) => row.size).filter(Boolean),
-  };
-}
-
 export async function quoteSku(sku: string, clientPricePaise?: number | null) {
-  const [row] = await db
-    .select({
-      sku: productVariants.sku,
-      pricePaise: productVariants.price,
-      availability: productVariants.availability,
-      status: products.status,
-      slug: products.slug,
-    })
-    .from(productVariants)
-    .innerJoin(products, eq(products.id, productVariants.productId))
-    .where(eq(productVariants.sku, sku))
-    .limit(1);
-
-  if (!row || row.status !== "ACTIVE") {
-    throw new NotFoundError("That option is not available to purchase.");
-  }
-  if (row.availability === "OUT_OF_STOCK" || row.availability === "PREORDER") {
-    throw new NotFoundError("That option is not available to purchase.");
-  }
+  // Same visibility + availability rules as the product page and cart foundation.
+  const row = await getPurchasableVariantBySku(sku);
+  if (!row) throw new NotFoundError("That option is not available to purchase.");
   return {
     sku: row.sku,
     slug: row.slug,

@@ -23,14 +23,19 @@ export function ComingSoonDialog({
   trigger,
   feature,
   description,
+  open,
+  onOpenChange,
 }: {
-  trigger: ReactNode;
+  /** Omit when the dialog is opened programmatically via `open`. */
+  trigger?: ReactNode;
   feature: string;
   description: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent>
         <DialogHeader>
           <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-flame">

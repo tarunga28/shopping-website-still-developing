@@ -19,9 +19,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],
-    // Importing the DB module requires a URL. Tests must not open a connection.
+    // Importing the DB module requires a URL. Unit tests must not open a connection;
+    // integration tests (tests/integration) only run when TEST_DATABASE_URL points at a
+    // disposable database with the schema applied (see README → Testing).
     env: {
-      DATABASE_URL: "postgresql://inkline:inkline@127.0.0.1:5432/inkline_test",
+      DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://inkline:inkline@127.0.0.1:5432/inkline_test",
       AUTH_SECRET: "test-secret-not-used-for-signing-sessions",
       AUTH_TRUST_HOST: "true",
     },

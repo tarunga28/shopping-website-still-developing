@@ -5,6 +5,7 @@ import { ProductForm } from "@/components/admin/product-form";
 import { ImageRow, ImageUpload, PublishBar, SupplierForm, VariantForm, VariantRow } from "@/components/admin/product-tools";
 import { ErrorState } from "@/components/ui/error-state";
 import { estimateGrossMargin, paiseToInrInput } from "@/lib/catalog-rules";
+import { parseProductDetails, specsToText } from "@/lib/catalog/product-details";
 import { formatPrice } from "@/lib/format";
 import { requireCatalogEditor } from "@/server/auth/catalog-access";
 import { getAdminProduct, listEditorOptions, sizesForProduct } from "@/services/catalog-admin.service";
@@ -36,6 +37,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
       discountPaise: 0,
     });
     const sizes = sizesForProduct(detail.product.productType, options.sizes);
+    const productDetails = parseProductDetails(detail.product.details);
     return (
       <AdminShell>
         <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -76,6 +78,12 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
               supplierMappingRequired: detail.product.supplierMappingRequired,
               designId: detail.designId ?? "",
               placement: detail.placement,
+              detailFeatures: productDetails.features.join("\n"),
+              detailMaterials: productDetails.materials ?? "",
+              detailFit: productDetails.fit ?? "",
+              detailCare: productDetails.care.join("\n"),
+              detailPrintDetails: productDetails.printDetails ?? "",
+              detailSpecs: specsToText(productDetails.specs),
             }}
           />
           <div className="grid content-start gap-4">

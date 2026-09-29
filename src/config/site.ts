@@ -38,6 +38,15 @@ export const siteConfig = {
     defaultCountry: "IN",
     /** Prices are stored in the smallest currency unit (paise). */
     currencyFractionDigits: 2,
+    /**
+     * Shipping facts shown on product pages ONLY when set. Leave null until
+     * they are real — the storefront never invents delivery promises.
+     */
+    shipping: {
+      processingTime: null as string | null,
+      deliveryEstimate: null as string | null,
+      regions: null as string | null,
+    },
   },
 
   /** Contact placeholders — replace before public launch. */

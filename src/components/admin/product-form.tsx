@@ -36,6 +36,13 @@ export interface ProductFormValues {
   supplierMappingRequired: boolean;
   designId: string;
   placement: string;
+  /** Storefront details — one item per line; specs are "Label: Value". */
+  detailFeatures: string;
+  detailMaterials: string;
+  detailFit: string;
+  detailCare: string;
+  detailPrintDetails: string;
+  detailSpecs: string;
 }
 
 const fieldClass = "h-11 w-full rounded-full border-[1.5px] border-clay bg-white px-4 text-sm";
@@ -142,6 +149,39 @@ export function ProductForm({ values, options }: { values: ProductFormValues; op
           <input name="seoDescription" defaultValue={values.seoDescription} maxLength={160} className={fieldClass} />
         </label>
       </div>
+      <details className="mt-4 rounded-card border-[1.5px] border-clay p-4">
+        <summary className="cursor-pointer text-sm font-semibold">Storefront details (shown on the product page)</summary>
+        <p className="mt-2 text-xs text-smoke">
+          Only fill in what is true. Empty fields are not shown to customers. One item per line; specifications use
+          &quot;Label: Value&quot;. Plain text only.
+        </p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-smoke md:col-span-2">
+            Features (one per line)
+            <textarea name="detailFeatures" defaultValue={values.detailFeatures} className={areaClass} />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-smoke">
+            Materials
+            <input name="detailMaterials" defaultValue={values.detailMaterials} maxLength={300} className={fieldClass} />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-smoke">
+            Fit
+            <input name="detailFit" defaultValue={values.detailFit} maxLength={300} className={fieldClass} />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-smoke md:col-span-2">
+            Print details
+            <input name="detailPrintDetails" defaultValue={values.detailPrintDetails} maxLength={300} className={fieldClass} />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-smoke">
+            Care (one per line)
+            <textarea name="detailCare" defaultValue={values.detailCare} className={areaClass} />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-smoke">
+            Specifications (Label: Value)
+            <textarea name="detailSpecs" defaultValue={values.detailSpecs} className={areaClass} />
+          </label>
+        </div>
+      </details>
       <details className="mt-4 rounded-card border-[1.5px] border-clay p-4">
         <summary className="cursor-pointer text-sm font-semibold">Internal costs and notes</summary>
         <p className="mt-2 text-xs text-smoke">Not shown on the storefront. This is an estimate, not profit.</p>

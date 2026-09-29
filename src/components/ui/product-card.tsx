@@ -21,13 +21,13 @@ const badgeMap: Record<ProductBadgeKind, { variant: "new" | "bestseller" | "sale
   SALE: { variant: "sale", label: "Sale" },
   LIMITED: { variant: "limited", label: "Limited" },
   LOW_STOCK: { variant: "limited", label: "Low stock" },
-  SOLD_OUT: { variant: "sold-out", label: "Sold out" },
+  SOLD_OUT: { variant: "sold-out", label: "Unavailable" },
 };
 
 const availabilityLabel: Record<NonNullable<ProductSummary["availability"]>, string | null> = {
   in_stock: null,
   low_stock: "Low stock",
-  sold_out: "Sold out",
+  sold_out: "Unavailable",
   coming_soon: "Coming soon",
 };
 
@@ -160,7 +160,7 @@ export function ProductCard({ product, href, layout = "grid", priority, saved = 
         {!soldOut ? (
           <Price amount={product.pricePaise} compareAt={product.compareAtPaise} className="shrink-0 pt-0.5" />
         ) : (
-          <span className="font-mono text-xs text-smoke">Sold out</span>
+          <span className="font-mono text-xs text-smoke">Currently unavailable</span>
         )}
       </div>
       {product.rating ? <Rating value={product.rating.value} count={product.rating.count} /> : null}

@@ -13,10 +13,13 @@ export default function StorefrontNotFound() {
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Button asChild>
-          <Link href="/shop">Browse the shop</Link>
+          <Link href="/shop">Shop All</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/">Back home</Link>
+          <Link href="/">Home</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/categories">Browse Categories</Link>
         </Button>
       </div>
     </div>

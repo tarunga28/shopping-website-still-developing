@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 import type { AnchorHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,20 +25,21 @@ export function PaginationItem({ className, ...props }: React.ComponentProps<"li
 
 export interface PaginationLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   isActive?: boolean;
+  /** Renders an inert, correctly announced control instead of a link. */
+  disabled?: boolean;
 }
 
-export function PaginationLink({ className, isActive, ...props }: PaginationLinkProps) {
-  return (
-    <a
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        buttonVariants({ variant: isActive ? "primary" : "ghost", size: "icon" }),
-        "text-xs",
-        className,
-      )}
-      {...props}
-    />
+export function PaginationLink({ className, isActive, disabled, href, ...props }: PaginationLinkProps) {
+  const classes = cn(
+    buttonVariants({ variant: isActive ? "primary" : "ghost", size: "icon" }),
+    "text-xs",
+    className,
   );
+  if (disabled || !href) {
+    return <span aria-disabled="true" className={cn(classes, "pointer-events-none opacity-40")} {...(props as object)} />;
+  }
+  // next/link gives client-side navigation and prefetching; the href keeps it a real, crawlable link.
+  return <Link href={href} aria-current={isActive ? "page" : undefined} className={classes} {...props} />;
 }
 
 export function PaginationPrevious({ className, ...props }: PaginationLinkProps) {

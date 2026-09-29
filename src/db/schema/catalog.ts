@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -92,6 +93,12 @@ export const products = pgTable(
     estimatedShippingPaise: integer("estimated_shipping_paise"),
     estimatedPaymentFeePaise: integer("estimated_payment_fee_paise"),
     supplierMappingRequired: boolean("supplier_mapping_required").notNull().default(false),
+    /**
+     * Structured storefront copy (features, materials, fit, care, print details,
+     * specs). Validated by `productDetailsSchema` on write AND on read — the
+     * column is untrusted JSON as far as the storefront is concerned.
+     */
+    details: jsonb("details"),
     ...timestamps,
   },
   (table) => [
@@ -101,6 +108,13 @@ export const products = pgTable(
     index("products_name_idx").on(table.name),
     index("products_published_at_idx").on(table.publishedAt),
     index("products_status_published_idx").on(table.status, table.publishedAt),
+    // Storefront browsing: partial indexes over ACTIVE rows only, one per sort order.
+    index("products_active_published_idx")
+      .on(sql`${table.publishedAt} desc nulls last`, table.id)
+      .where(sql`${table.status} = 'ACTIVE'`),
+    index("products_active_price_idx").on(table.basePrice, table.id).where(sql`${table.status} = 'ACTIVE'`),
+    index("products_active_name_idx").on(sql`lower(${table.name})`, table.id).where(sql`${table.status} = 'ACTIVE'`),
+    index("products_active_type_idx").on(table.productType, table.id).where(sql`${table.status} = 'ACTIVE'`),
     check("products_base_price_non_negative", sql`${table.basePrice} >= 0`),
     check(
       "products_compare_at_not_below",
@@ -179,6 +193,7 @@ export const productVariants = pgTable(
     index("product_variants_availability_idx").on(table.availability),
     index("product_variants_size_idx").on(table.size),
     index("product_variants_color_idx").on(table.color),
+    index("product_variants_product_availability_idx").on(table.productId, table.availability),
     uniqueIndex("product_variants_combo_key").on(
       table.productId,
       sql`coalesce(${table.size}, '')`,
@@ -304,10 +319,44 @@ export const images = pgTable(
   },
   (table) => [
     index("images_product_idx").on(table.productId),
+    index("images_product_type_sort_idx").on(table.productId, table.type, table.sortOrder),
     index("images_design_idx").on(table.designId),
     index("images_variant_idx").on(table.variantId),
     index("images_category_idx").on(table.categoryId),
     index("images_collection_idx").on(table.collectionId),
+  ],
+);
+
+/** Previous public slugs for categories/collections, so renamed URLs keep redirecting. */
+export const categorySlugHistory = pgTable(
+  "category_slug_history",
+  {
+    ...idColumn,
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("category_slug_history_slug_key").on(table.slug),
+    index("category_slug_history_category_idx").on(table.categoryId),
+  ],
+);
+
+export const collectionSlugHistory = pgTable(
+  "collection_slug_history",
+  {
+    ...idColumn,
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => collections.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("collection_slug_history_slug_key").on(table.slug),
+    index("collection_slug_history_collection_idx").on(table.collectionId),
   ],
 );
 
@@ -380,3 +429,32 @@ export type Collection = typeof collections.$inferSelect;
 export type Design = typeof designs.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type ProductImage = typeof images.$inferSelect;
+
+
+/**
+ * Real, product-type-specific size measurements shown in the PDP size guide.
+ * One active chart per product type. No chart row → no size-guide button:
+ * measurements are never invented.
+ */
+export const sizeCharts = pgTable(
+  "size_charts",
+  {
+    ...idColumn,
+    productType: productTypeEnum("product_type").notNull(),
+    title: text("title").notNull(),
+    /** Unit of the measurements (validated by `sizeChartSchema`). */
+    unit: text("unit").notNull().default("cm"),
+    /** string[] — first column is the size code, e.g. ["Size","Chest","Length"]. */
+    columns: jsonb("columns").notNull(),
+    /** string[][] — one row per size, same width as `columns`. */
+    rows: jsonb("rows").notNull(),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("size_charts_active_type_key")
+      .on(table.productType)
+      .where(sql`${table.isActive} = true`),
+  ],
+);

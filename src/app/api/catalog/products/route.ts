@@ -29,6 +29,12 @@ export const GET = withErrorHandling(async (request: Request) => {
     page: page.page,
     pageSize: page.pageSize,
     total: page.total,
+    pagination: {
+      page: page.page,
+      pageSize: page.pageSize,
+      total: page.total,
+      totalPages: Math.max(1, Math.ceil(page.total / page.pageSize)),
+    },
     sort: page.sort,
     popularityMeasured: page.popularityMeasured,
   });

@@ -64,6 +64,7 @@ export function productMetadata(input: {
   description?: string | null;
   slug: string;
   image?: string | null;
+  noIndex?: boolean;
 }): Metadata {
   const title = plainText(input.title, 70) || "Product";
   const description = plainText(
@@ -73,8 +74,10 @@ export function productMetadata(input: {
   return buildMetadata({
     title,
     description,
+    // Always the clean URL: `?color=&size=` variants never become their own indexable pages.
     path: `/product/${input.slug}`,
     image: metaImage(input.image),
+    noIndex: input.noIndex,
   });
 }
 
@@ -198,23 +201,49 @@ export function productJsonLd(input: {
   availability?: string;
   sku?: string | null;
   rating?: { value: number; count: number };
+  /** Per-variant offers. Omitted → a single offer at `pricePaise`. */
+  offers?: { sku: string; pricePaise: number; orderable: boolean }[];
 }) {
+  const productUrl = `${siteConfig.url}/product/${input.slug}`;
+  const offerList = (input.offers ?? [])
+    .filter((offer) => Number.isInteger(offer.pricePaise) && offer.pricePaise > 0)
+    .slice(0, 50)
+    .map((offer) => ({
+      "@type": "Offer",
+      sku: plainText(offer.sku, 64),
+      priceCurrency: siteConfig.commerce.currency,
+      price: schemaPrice(offer.pricePaise),
+      availability: offer.orderable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      url: productUrl,
+    }));
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: plainText(input.name, 120),
     description: plainText(input.description, 300),
-    url: `${siteConfig.url}/product/${input.slug}`,
+    url: productUrl,
     brand: { "@type": "Brand", name: plainText(siteConfig.name, 80) },
-    offers: {
-      "@type": "Offer",
-      priceCurrency: siteConfig.commerce.currency,
-      price: schemaPrice(input.pricePaise),
-      availability: AVAILABILITY[input.availability ?? ""] ?? "https://schema.org/PreOrder",
-      url: `${siteConfig.url}/product/${input.slug}`,
-    },
+    offers:
+      offerList.length > 1
+        ? {
+            "@type": "AggregateOffer",
+            priceCurrency: siteConfig.commerce.currency,
+            lowPrice: schemaPrice(Math.min(...input.offers!.map((offer) => offer.pricePaise).filter((value) => value > 0))),
+            highPrice: schemaPrice(Math.max(...input.offers!.map((offer) => offer.pricePaise))),
+            offerCount: offerList.length,
+            offers: offerList,
+          }
+        : offerList.length === 1
+          ? offerList[0]
+          : {
+              "@type": "Offer",
+              priceCurrency: siteConfig.commerce.currency,
+              price: schemaPrice(input.pricePaise),
+              availability: AVAILABILITY[input.availability ?? ""] ?? "https://schema.org/PreOrder",
+              url: productUrl,
+            },
   };
-  if (input.sku) data.sku = plainText(input.sku, 64);
+  if (input.sku && offerList.length <= 1) data.sku = plainText(input.sku, 64);
   if (input.image && isSafeImageSrc(input.image)) {
     data.image = input.image.startsWith("http") ? input.image : `${siteConfig.url}${input.image}`;
   }

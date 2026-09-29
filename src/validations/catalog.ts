@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { productDetailsSchema } from "@/lib/catalog/product-details";
 import { DESIGN_PLACEMENTS, PRODUCT_STATUSES, PRODUCT_TYPES } from "@/lib/catalog-rules";
 
 const moneyInput = z.string().trim().max(16);
@@ -32,6 +33,8 @@ export const productWriteSchema = z.object({
   supplierMappingRequired: z.boolean().default(false),
   designId: id.optional().or(z.literal("")),
   placement: z.enum(DESIGN_PLACEMENTS).default("FRONT"),
+  /** Storefront copy (features, materials, fit, care, specs). Omitted = leave unchanged. */
+  details: productDetailsSchema.optional(),
 });
 
 export const variantWriteSchema = z.object({
