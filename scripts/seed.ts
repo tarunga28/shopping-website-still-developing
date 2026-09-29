@@ -10,9 +10,11 @@ import "dotenv/config";
 import { randomBytes, scryptSync } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
+import { DEFAULT_COLORS, SIZE_CATALOG, tagSlug } from "@/lib/catalog-rules";
 import {
   categories,
   collections,
+  colors,
   coupons,
   designs,
   images,
@@ -24,6 +26,8 @@ import {
   productDesigns,
   products,
   productVariants,
+  sizeProductTypes,
+  sizes,
   users,
 } from "@/db/schema";
 
@@ -56,8 +60,38 @@ async function ensure<T extends Record<string, unknown>>(opts: {
   return existing[0].id as string;
 }
 
+async function seedOptions() {
+  for (const [index, color] of DEFAULT_COLORS.entries()) {
+    await ensure({
+      table: colors,
+      values: { name: color.name, slug: tagSlug(color.name), hex: color.hex, displayOrder: index, isActive: true },
+      target: colors.slug,
+      selectBy: { column: colors.slug, value: tagSlug(color.name) },
+    });
+  }
+  for (const [index, size] of SIZE_CATALOG.entries()) {
+    const sizeId = await ensure({
+      table: sizes,
+      values: { code: size.code, label: size.label, displayOrder: index, isActive: true },
+      target: sizes.code,
+      selectBy: { column: sizes.code, value: size.code },
+    });
+    for (const productType of size.productTypes) {
+      const existing = await db
+        .select({ sizeId: sizeProductTypes.sizeId })
+        .from(sizeProductTypes)
+        .where(and(eq(sizeProductTypes.sizeId, sizeId), eq(sizeProductTypes.productType, productType)))
+        .limit(1);
+      if (!existing.length) {
+        await db.insert(sizeProductTypes).values({ sizeId, productType });
+      }
+    }
+  }
+}
+
 async function main() {
   console.log("Seeding Inkline development data…");
+  await seedOptions();
   const now = new Date();
 
   /* ── Users ──────────────────────────────────────────────────────── */
@@ -98,17 +132,17 @@ async function main() {
       selectBy: { column: categories.slug, value: slug },
     });
 
-  const apparelId = await cat("apparel", "Apparel", "Heavyweight clothing printed to order.", undefined, 1);
+  const apparelId = await cat("apparel", "Apparel", "Clothing printed after you order.", undefined, 1);
   const accessoriesId = await cat("accessories", "Accessories", "Carry, sip and protect.", undefined, 2);
-  const wallArtId = await cat("wall-art", "Wall Art", "Gallery-grade prints for your walls.", undefined, 3);
+  const wallArtId = await cat("wall-art", "Wall Art", "Prints for your walls.", undefined, 3);
 
-  const tshirtsId = await cat("t-shirts", "T-Shirts", "240 GSM heavyweight cotton tees.", apparelId, 1);
-  const hoodiesId = await cat("hoodies", "Hoodies", "Brushed fleece, drop shoulders.", apparelId, 2);
-  const sweatshirtsId = await cat("sweatshirts", "Sweatshirts", "Cozy crewnecks.", apparelId, 3);
-  const mugsId = await cat("mugs", "Mugs", "Dishwasher-safe ceramic, 325 ml.", accessoriesId, 1);
-  const totesId = await cat("tote-bags", "Tote Bags", "12 oz canvas totes.", accessoriesId, 2);
-  const casesId = await cat("phone-cases", "Phone Cases", "Impact-resistant matte cases.", accessoriesId, 3);
-  const postersId = await cat("posters", "Posters", "Museum-grade matte paper.", wallArtId, 1);
+  const tshirtsId = await cat("t-shirts", "T-Shirts", "Tees printed after you order.", apparelId, 1);
+  const hoodiesId = await cat("hoodies", "Hoodies", "Hoodies printed after you order.", apparelId, 2);
+  const sweatshirtsId = await cat("sweatshirts", "Sweatshirts", "Crewnecks printed after you order.", apparelId, 3);
+  const mugsId = await cat("mugs", "Mugs", "Ceramic mugs.", accessoriesId, 1);
+  const totesId = await cat("tote-bags", "Tote Bags", "Canvas totes.", accessoriesId, 2);
+  const casesId = await cat("phone-cases", "Phone Cases", "Phone cases.", accessoriesId, 3);
+  const postersId = await cat("posters", "Posters", "Posters printed after you order.", wallArtId, 1);
   console.log("  categories ✓ (3 parents, 7 children)");
 
   /* ── Collections ────────────────────────────────────────────────── */
@@ -165,14 +199,14 @@ async function main() {
   }
 
   const seedProducts: SeedProduct[] = [
-    { slug: "offbeat-grid-tee", name: "Offbeat Grid Tee", type: "T_SHIRT", price: 89900, compareAt: 119900, image: "/images/products/tee.jpg", categories: [tshirtsId], collections: [newArrivalsId, bestSellersId], designId: offbeatGridId, status: "ACTIVE", short: "240 GSM heavyweight cotton with swirling grid print." },
-    { slug: "ember-sketch-hoodie", name: "Ember Sketch Hoodie", type: "HOODIE", price: 199900, image: "/images/products/hoodie.jpg", categories: [hoodiesId], collections: [bestSellersId], designId: emberSketchId, status: "ACTIVE", short: "Brushed fleece hoodie with ember line art." },
-    { slug: "studio-sweatshirt", name: "Studio Sweatshirt", type: "SWEATSHIRT", price: 149900, image: "/images/products/sweatshirt.jpg", categories: [sweatshirtsId], collections: [newArrivalsId], designId: waveStudyId, status: "ACTIVE", short: "Cozy crewneck for studio days." },
-    { slug: "morning-ritual-mug", name: "Morning Ritual Mug", type: "MUG", price: 49900, image: "/images/products/mug.jpg", categories: [mugsId], collections: [newArrivalsId], designId: waveStudyId, status: "ACTIVE", short: "Dishwasher-safe ceramic with wrap-around line art." },
-    { slug: "sunset-lines-poster", name: "Sunset Lines Poster", type: "POSTER", price: 34900, image: "/images/products/poster.jpg", categories: [postersId], collections: [], designId: waveStudyId, status: "ACTIVE", short: "Museum-grade matte print with gallery inks." },
-    { slug: "carry-chaos-tote", name: "Carry Chaos Tote", type: "TOTE_BAG", price: 69900, image: "/images/products/tote.jpg", categories: [totesId], collections: [], designId: offbeatGridId, status: "ACTIVE", short: "12 oz canvas tote that carries it all." },
-    { slug: "pocket-art-case", name: "Pocket Art Case", type: "PHONE_CASE", price: 79900, image: "/images/products/phone-case.jpg", categories: [casesId], collections: [], designId: emberSketchId, status: "ACTIVE", short: "Slim impact-resistant case, matte finish." },
-    { slug: "ink-marker-tee", name: "Ink Marker Tee", type: "T_SHIRT", price: 99900, image: "/images/products/tee.jpg", categories: [tshirtsId], collections: [bestSellersId], designId: inkPortraitId, status: "ACTIVE", short: "Marker-line portrait on ecru heavyweight cotton." },
+    { slug: "offbeat-grid-tee", name: "Offbeat Grid Tee", type: "T_SHIRT", price: 89900, compareAt: 119900, image: "/images/products/tee.jpg", categories: [tshirtsId], collections: [newArrivalsId, bestSellersId], designId: offbeatGridId, status: "ACTIVE", short: "Tee with a swirling grid print. Development catalogue sample." },
+    { slug: "ember-sketch-hoodie", name: "Ember Sketch Hoodie", type: "HOODIE", price: 199900, image: "/images/products/hoodie.jpg", categories: [hoodiesId], collections: [bestSellersId], designId: emberSketchId, status: "ACTIVE", short: "Hoodie with ember line art. Development catalogue sample." },
+    { slug: "studio-sweatshirt", name: "Studio Sweatshirt", type: "SWEATSHIRT", price: 149900, image: "/images/products/sweatshirt.jpg", categories: [sweatshirtsId], collections: [newArrivalsId], designId: waveStudyId, status: "ACTIVE", short: "Crewneck with a wave study. Development catalogue sample." },
+    { slug: "morning-ritual-mug", name: "Morning Ritual Mug", type: "MUG", price: 49900, image: "/images/products/mug.jpg", categories: [mugsId], collections: [newArrivalsId], designId: waveStudyId, status: "ACTIVE", short: "Mug with wrap-around line art. Development catalogue sample." },
+    { slug: "sunset-lines-poster", name: "Sunset Lines Poster", type: "POSTER", price: 34900, image: "/images/products/poster.jpg", categories: [postersId], collections: [], designId: waveStudyId, status: "ACTIVE", short: "Poster with a line-field print. Development catalogue sample." },
+    { slug: "carry-chaos-tote", name: "Carry Chaos Tote", type: "TOTE_BAG", price: 69900, image: "/images/products/tote.jpg", categories: [totesId], collections: [], designId: offbeatGridId, status: "ACTIVE", short: "Tote with a grid print. Development catalogue sample." },
+    { slug: "pocket-art-case", name: "Pocket Art Case", type: "PHONE_CASE", price: 79900, image: "/images/products/phone-case.jpg", categories: [casesId], collections: [], designId: emberSketchId, status: "ACTIVE", short: "Phone case with a line drawing. Development catalogue sample." },
+    { slug: "ink-marker-tee", name: "Ink Marker Tee", type: "T_SHIRT", price: 99900, image: "/images/products/tee.jpg", categories: [tshirtsId], collections: [bestSellersId], designId: inkPortraitId, status: "ACTIVE", short: "Tee with a marker-line portrait. Development catalogue sample." },
   ];
 
   const APPAREL_SIZES = ["S", "M", "L", "XL", "XXL"] as const;
@@ -189,7 +223,7 @@ async function main() {
         slug: seed.slug,
         name: seed.name,
         shortDescription: seed.short,
-        description: `${seed.short} Printed on demand in India on premium blanks.`,
+        description: `${seed.short} Printed after the order is placed. Development seed — not a customer review or a material certificate.`,
         productType: seed.type,
         status: seed.status,
         basePrice: seed.price,

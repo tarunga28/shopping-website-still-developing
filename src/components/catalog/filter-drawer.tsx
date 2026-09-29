@@ -1,77 +1,59 @@
 "use client";
 
+import Link from "next/link";
 import { SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { sampleCategories } from "@/lib/placeholder-data";
+import { categoryPath } from "@/lib/storefront-paths";
 
 /**
- * Filter panel UI (drawer on mobile, docked panel-ready on desktop).
- * Controls are presentational for now — real filtering lands with the
- * catalog database and URL-driven filter state.
+ * Category shortcuts. Price and availability filters are not wired yet,
+ * so they are not presented as controls that look like they work.
  */
-export function FilterDrawer({ trigger }: { trigger: ReactNode }) {
+export function FilterDrawer({
+  trigger,
+  categories = [],
+}: {
+  trigger: ReactNode;
+  categories?: { slug: string; name: string }[];
+}) {
   return (
     <Drawer>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
       <DrawerContent side="right" className="flex w-full flex-col p-6" aria-describedby={undefined}>
-        <div className="flex items-center justify-between">
-          <DrawerTitle className="flex items-center gap-2 text-xl">
-            <SlidersHorizontal className="size-5 text-flame" aria-hidden />
-            Filters
-          </DrawerTitle>
-          <Badge variant="coming-soon">Activates at launch</Badge>
-        </div>
+        <DrawerTitle className="flex items-center gap-2 text-xl">
+          <SlidersHorizontal className="size-5 text-flame" aria-hidden />
+          Browse
+        </DrawerTitle>
+        <p className="mt-2 text-sm text-smoke">
+          Price and availability filters are not available yet. Categories below are real links.
+        </p>
 
-        <div className="mt-8 flex-1 space-y-8 overflow-y-auto">
-          <fieldset>
-            <legend className="text-[11px] font-semibold uppercase tracking-[0.14em] text-smoke">Category</legend>
-            <div className="mt-3 space-y-2.5">
-              {sampleCategories.map((category) => (
-                <label key={category.slug} className="flex cursor-pointer items-center gap-2.5 text-sm text-ink/85">
-                  <Checkbox disabled aria-label={category.name} />
-                  {category.name}
-                  <span className="ml-auto font-mono text-[10px] text-smoke">—</span>
-                </label>
+        <nav aria-label="Categories" className="mt-8 flex-1 overflow-y-auto">
+          {categories.length === 0 ? (
+            <p className="text-sm text-smoke">No categories are published.</p>
+          ) : (
+            <ul className="space-y-1">
+              {categories.map((category) => (
+                <li key={category.slug}>
+                  <Link
+                    href={categoryPath(category.slug)}
+                    data-track="CATEGORY_CLICK"
+                    data-track-id={category.slug}
+                    className="flex min-h-11 items-center rounded-xl px-2 text-sm font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame"
+                  >
+                    {category.name}
+                  </Link>
+                </li>
               ))}
-            </div>
-          </fieldset>
+            </ul>
+          )}
+        </nav>
 
-          <fieldset>
-            <legend className="text-[11px] font-semibold uppercase tracking-[0.14em] text-smoke">Price</legend>
-            <RadioGroup className="mt-3" aria-label="Price range">
-              {["Under ₹500", "₹500 – ₹1,000", "₹1,000 – ₹2,000", "Above ₹2,000"].map((range) => (
-                <label key={range} className="flex cursor-pointer items-center gap-2.5 text-sm text-ink/85">
-                  <RadioGroupItem value={range} disabled aria-label={range} />
-                  {range}
-                </label>
-              ))}
-            </RadioGroup>
-          </fieldset>
-
-          <fieldset>
-            <legend className="text-[11px] font-semibold uppercase tracking-[0.14em] text-smoke">Availability</legend>
-            <div className="mt-3 space-y-2.5">
-              {["In stock", "Low stock", "Coming soon"].map((option) => (
-                <label key={option} className="flex cursor-pointer items-center gap-2.5 text-sm text-ink/85">
-                  <Checkbox disabled aria-label={option} />
-                  {option}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        </div>
-
-        <div className="mt-6 flex gap-3 border-t border-clay pt-5">
-          <Button variant="primary" size="md" className="flex-1" disabled>
-            Apply filters
-          </Button>
+        <div className="mt-6 border-t border-clay pt-5">
           <DrawerClose asChild>
-            <Button variant="outline" size="md">
+            <Button variant="outline" size="md" className="w-full">
               Close
             </Button>
           </DrawerClose>

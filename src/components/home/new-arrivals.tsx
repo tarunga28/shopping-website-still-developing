@@ -1,61 +1,94 @@
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { SectionFallback } from "@/components/home/section-fallback";
 import { Section, SectionHeader } from "@/components/layout/section";
+import { EmptyProducts } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/ui/product-card";
+import { storefrontContent } from "@/content/storefront";
+import { productPath } from "@/lib/storefront-paths";
 import type { ProductSummary } from "@/types";
+import type { SectionStatus } from "@/types/storefront";
 
 /**
- * New arrivals — horizontal rail of the freshest live catalog items.
+ * Newest published products. Sorting is applied by the catalog query
+ * (publishedAt desc) before this component renders.
  */
-export function NewArrivals({ products }: { products: ProductSummary[] }) {
-  if (products.length === 0) return null;
-  const fresh = products.filter((product) => product.badge === "NEW");
-  const picks = [...fresh, ...products.filter((product) => product.badge !== "NEW")].slice(0, 5);
+export function NewArrivals({
+  products,
+  status = "ok",
+  savedIds = [],
+}: {
+  products: ProductSummary[];
+  status?: SectionStatus;
+  savedIds?: string[];
+}) {
+  const copy = storefrontContent.newArrivals;
+  const saved = new Set(savedIds);
 
-  return (
-    <Section id="new-arrivals" className="py-14 md:py-20">
-      <div className="flex flex-wrap items-end justify-between gap-6">
+  if (status === "error") {
+    return <SectionFallback id="new-arrivals" title="New arrivals didn't load" />;
+  }
+
+  if (status === "empty" || products.length === 0) {
+    return (
+      <Section id="new-arrivals">
         <SectionHeader
-          eyebrow="This week in the studio"
+          eyebrow={copy.eyebrow}
           title={
             <>
-              New
+              {copy.titleLead}
               <br />
-              arrivals<span className="text-flame">.</span>
+              {copy.titleAccent}
+              <span className="text-flame">.</span>
             </>
           }
+          description={copy.description}
+        />
+        <EmptyProducts />
+      </Section>
+    );
+  }
+
+  return (
+    <Section id="new-arrivals">
+      <div className="flex flex-wrap items-end justify-between gap-6">
+        <SectionHeader
+          eyebrow={copy.eyebrow}
+          title={
+            <>
+              {copy.titleLead}
+              <br />
+              {copy.titleAccent}
+              <span className="text-flame">.</span>
+            </>
+          }
+          description={copy.description}
           className="mb-0"
         />
-        <a
-          href="/shop"
-          className="group hidden items-center gap-2 rounded-pill border-[1.5px] border-ink px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-all hover:bg-ink hover:text-paper sm:inline-flex"
+        <Link
+          href={copy.viewAll.href}
+          className="hidden min-h-11 items-center gap-2 rounded-pill border-[1.5px] border-ink px-5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame sm:inline-flex"
         >
-          View the full drop
-          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
-        </a>
+          {copy.viewAll.label}
+          <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
       </div>
 
-      <ul className="-mx-5 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 sm:-mx-8 sm:gap-5 sm:px-8 lg:mx-0 lg:snap-none lg:overflow-visible lg:px-0 lg:pb-0">
-        {picks.map((product, index) => (
-          <li
-            key={product.id}
-            className={
-              "w-[68vw] shrink-0 snap-start sm:w-[42vw] lg:w-auto lg:shrink " +
-              (index === 0 ? "lg:basis-[24%] " : "lg:basis-[19%] ") +
-              (index % 2 === 1 ? "lg:translate-y-8" : "")
-            }
-          >
-            <ProductCard product={product} priority={index < 2} />
+      <ul className="-mx-5 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-5 lg:overflow-visible lg:px-0">
+        {products.map((product) => (
+          <li key={product.id} className="w-[72vw] shrink-0 snap-start sm:w-[42vw] lg:w-auto">
+            <ProductCard product={product} href={productPath(product.slug)} saved={saved.has(product.id)} />
           </li>
         ))}
       </ul>
 
-      <a
-        href="/shop"
-        className="group mt-10 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink underline decoration-flame decoration-2 underline-offset-4 hover:text-flame sm:hidden"
+      <Link
+        href={copy.viewAll.href}
+        className="mt-8 inline-flex min-h-11 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] underline decoration-flame decoration-2 underline-offset-4 sm:hidden"
       >
-        View the full drop
+        {copy.viewAll.label}
         <ArrowRight className="size-3.5" aria-hidden />
-      </a>
+      </Link>
     </Section>
   );
 }

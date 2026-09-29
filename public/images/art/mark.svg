@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Inkline mark</title>
+  <desc id="desc">Abstract ink grid on warm paper, used when a catalogue image is not available.</desc>
+  <rect width="800" height="1000" fill="#efe9db"/>
+  <g fill="none" stroke="#16130e" stroke-width="1.5">
+    <path d="M80 180h640M80 280h640M80 380h640M80 480h640M80 580h640M80 680h640M80 780h640"/>
+    <path d="M160 120v760M280 120v760M400 120v760M520 120v760M640 120v760"/>
+  </g>
+  <path d="M120 640c80-160 180-40 260-180s160 40 300-80" fill="none" stroke="#ff4a1c" stroke-width="8" stroke-linecap="round"/>
+</svg>

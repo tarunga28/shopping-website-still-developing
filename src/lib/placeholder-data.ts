@@ -42,7 +42,7 @@ export const sampleCategories: ProductCategory[] = [
   {
     slug: "posters",
     name: "Posters",
-    description: "Museum-grade matte paper, gallery inks.",
+    description: "Poster sample. Development sample, not a live listing.",
     image: "/images/products/poster.jpg",
     fromPricePaise: 34900,
   },
@@ -56,7 +56,7 @@ export const sampleCategories: ProductCategory[] = [
   {
     slug: "phone-cases",
     name: "Phone Cases",
-    description: "Slim, impact-resistant, matte finish.",
+    description: "Phone case sample. Development sample, not a live listing.",
     image: "/images/products/phone-case.jpg",
     fromPricePaise: 79900,
   },
@@ -73,7 +73,7 @@ export const sampleProducts: ProductSummary[] = [
     image: "/images/products/tee.jpg",
     hoverImage: "/images/hero.jpg",
     badge: "NEW",
-    rating: { value: 4.8, count: 24 },
+    rating: { value: 0, count: 0 },
     availability: "in_stock",
     blurb: "240 GSM heavyweight cotton with the signature swirling grid print.",
   },
@@ -86,7 +86,7 @@ export const sampleProducts: ProductSummary[] = [
     image: "/images/products/hoodie.jpg",
     hoverImage: "/images/products/sweatshirt.jpg",
     badge: "BESTSELLER",
-    rating: { value: 4.9, count: 41 },
+    rating: { value: 0, count: 0 },
     availability: "in_stock",
     blurb: "Brushed fleece hoodie with hand-drawn ember line art.",
   },
@@ -98,7 +98,7 @@ export const sampleProducts: ProductSummary[] = [
     pricePaise: 149900,
     image: "/images/products/sweatshirt.jpg",
     hoverImage: "/images/products/hoodie.jpg",
-    rating: { value: 4.6, count: 17 },
+    rating: { value: 0, count: 0 },
     availability: "in_stock",
     blurb: "Cozy crewneck for studio days and slow Sundays.",
   },
@@ -110,7 +110,7 @@ export const sampleProducts: ProductSummary[] = [
     pricePaise: 49900,
     image: "/images/products/mug.jpg",
     badge: "NEW",
-    rating: { value: 4.7, count: 33 },
+    rating: { value: 0, count: 0 },
     availability: "in_stock",
     blurb: "Dishwasher-safe ceramic with wrap-around line art.",
   },
@@ -121,7 +121,7 @@ export const sampleProducts: ProductSummary[] = [
     category: "Posters",
     pricePaise: 34900,
     image: "/images/products/poster.jpg",
-    rating: { value: 4.9, count: 58 },
+    rating: { value: 0, count: 0 },
     availability: "in_stock",
     blurb: "Museum-grade matte print with gallery inks.",
   },
@@ -133,7 +133,7 @@ export const sampleProducts: ProductSummary[] = [
     pricePaise: 69900,
     image: "/images/products/tote.jpg",
     badge: "LOW_STOCK",
-    rating: { value: 4.5, count: 12 },
+    rating: { value: 0, count: 0 },
     availability: "low_stock",
     blurb: "12 oz canvas tote that carries it all — beautifully.",
   },
@@ -144,7 +144,7 @@ export const sampleProducts: ProductSummary[] = [
     category: "Phone Cases",
     pricePaise: 79900,
     image: "/images/products/phone-case.jpg",
-    rating: { value: 4.4, count: 9 },
+    rating: { value: 0, count: 0 },
     availability: "in_stock",
     blurb: "Slim impact-resistant case with matte art finish.",
   },
@@ -157,9 +157,9 @@ export const sampleProducts: ProductSummary[] = [
     image: "/images/products/tee.jpg",
     hoverImage: "/images/hero.jpg",
     badge: "BESTSELLER",
-    rating: { value: 4.8, count: 36 },
+    rating: { value: 0, count: 0 },
     availability: "in_stock",
-    blurb: "Marker-line portrait print on heavyweight ecru cotton.",
+    blurb: "Tee sample. Development sample, not a live listing.",
   },
 ];
 
@@ -175,55 +175,24 @@ export const howItWorksSteps: HowItWorksStep[] = [
   {
     step: "01",
     title: "Choose a design",
-    description:
-      "Browse original artwork from independent artists, printed on premium tees, hoodies, mugs, posters and more.",
+    description: "Browse artwork that is already in the catalogue.",
   },
   {
     step: "02",
-    title: "Place your order",
-    description:
-      "Checkout securely with UPI, cards or netbanking. You pay only for what you love — nothing more.",
+    title: "Save what you like",
+    description: "Accounts and wishlists are live. Checkout is not open yet.",
   },
   {
     step: "03",
-    title: "We print it fresh",
-    description:
-      "Nothing sits in a warehouse. Your piece is printed, cured and quality-checked only after you order it.",
+    title: "We print after the order",
+    description: "That is the production model. A print partner is not connected yet.",
   },
   {
     step: "04",
-    title: "We ship it to you",
-    description:
-      "Packed with care and shipped across India with live tracking — from our print floor to your doorstep.",
+    title: "Shipping comes later",
+    description: "Delivery tracking is not live. Nothing is promised as in transit.",
   },
 ];
 
-export const sampleTestimonials: Testimonial[] = [
-  {
-    id: "t-01",
-    quote:
-      "The print quality genuinely surprised me — colours are punchy and the tee feels heavy in the best way. Three washes in, still perfect.",
-    name: "Aarav M.",
-    location: "Bengaluru",
-    rating: 5,
-    productLabel: "Offbeat Grid Tee",
-  },
-  {
-    id: "t-02",
-    quote:
-      "Ordered a hoodie for my sister and a mug for myself. Packaging was plastic-free and the tracking updates were spot on.",
-    name: "Priya S.",
-    location: "Pune",
-    rating: 5,
-    productLabel: "Ember Sketch Hoodie",
-  },
-  {
-    id: "t-03",
-    quote:
-      "Posters look like gallery prints. You can tell each piece is made when ordered instead of pulled off a shelf.",
-    name: "Rohan K.",
-    location: "New Delhi",
-    rating: 5,
-    productLabel: "Sunset Lines Poster",
-  },
-];
+/** Unused by the storefront. Kept empty so fabricated quotes cannot be rendered. */
+export const sampleTestimonials: Testimonial[] = [];

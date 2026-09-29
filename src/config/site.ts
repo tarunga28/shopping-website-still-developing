@@ -15,15 +15,15 @@ export const siteConfig = {
   legalName: "Inkline Studios",
   tagline: "Wear your creativity.",
   description:
-    "Original artwork, printed on demand on premium tees, hoodies, mugs, posters and more. Designed and shipped from India. No mass production, no waste — every piece is made fresh when you order.",
+    "Original artwork printed after you order, on tees, hoodies, mugs, posters and more. Browse the catalogue, save pieces to a wishlist, and join the list for launch notes. Checkout is not open yet.",
   keywords: [
     "print on demand india",
-    "custom t-shirts",
-    "premium graphic tees",
-    "designer hoodies",
+    "original artwork",
+    "graphic tees",
+    "printed hoodies",
     "art posters",
     "printed mugs",
-    "original artwork apparel",
+    "wishlist",
   ],
 
   /** Deployment */
@@ -64,8 +64,8 @@ export const siteConfig = {
     newsletter: true,
     catalogSearch: true, // client-side preview search over sample catalogue
     cart: false,
-    wishlist: false,
-    customerAccounts: false,
+    wishlist: true,
+    customerAccounts: true,
     checkout: false,
     payments: false,
     reviews: false,
@@ -80,9 +80,9 @@ export const siteConfig = {
   announcement: {
     enabled: true,
     messages: [
-      "Drop 001 loading — made fresh after you order ✳ zero waste",
-      "New designs every week · printed on demand in India",
-      "Secure UPI & card payments at launch via Razorpay",
+      "Printed after you order — not pulled from a shelf",
+      "Accounts are open — save pieces to your wishlist",
+      "Checkout and payments are not open yet",
     ],
   },
 } as const;

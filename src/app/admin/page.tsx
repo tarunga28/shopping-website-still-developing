@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import Link from "next/link";
 import { BarChart3, Package, ShoppingCart, Ticket, Users } from "lucide-react";
 import { AdminShell } from "@/components/layouts/admin-shell";
 import { StatCard } from "@/components/cards/stat-card";
@@ -39,15 +40,20 @@ export default async function AdminDashboardPage() {
             <span className="font-mono text-xs font-semibold">{admin?.role}</span>
           </p>
         </div>
-        <form action={logoutAction}>
-          <Button variant="outline" size="sm" type="submit">
-            Sign out
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/admin/products">Manage products</Link>
           </Button>
-        </form>
+          <form action={logoutAction}>
+            <Button variant="outline" size="sm" type="submit">
+              Sign out
+            </Button>
+          </form>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Products" value={String(productCount)} icon={Package} hint="Catalog seeded and live" />
+        <StatCard label="Products" value={String(productCount)} icon={Package} hint="Open catalog management" />
         <StatCard label="Orders" value={String(orderCount)} icon={ShoppingCart} hint="Checkout opens at launch" />
         <StatCard label="Registered accounts" value={String(customerCount)} icon={Users} hint="Customers + staff" />
         <StatCard label="Support tickets" value={String(ticketCount)} icon={Ticket} hint="Support module pending" />
@@ -60,10 +66,10 @@ export default async function AdminDashboardPage() {
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-smoke sm:grid-cols-2">
           {[
-            "Product, design & variant management",
             "Order queue with POD fulfillment status",
             "Customer directory with lifecycle actions",
-            "Coupon, review & support-ticket operations",
+            "Coupon, review and support-ticket operations",
+            "A connected print supplier",
           ].map((item) => (
             <p key={item} className="flex items-start gap-2">
               <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-flame" aria-hidden />

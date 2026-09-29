@@ -22,7 +22,8 @@ function buildContentSecurityPolicy(): string {
     "font-src": ["'self'", "data:"],
     "connect-src": ["'self'", ...(isProd ? [] : ["ws:", "wss:"])],
     "object-src": ["'none'"],
-    "frame-ancestors": ["'none'"],
+    // Production refuses embedding. Dev allows the Arena preview iframe.
+    "frame-ancestors": isProd ? ["'none'"] : ["*"],
     "base-uri": ["'self'"],
     "form-action": ["'self'"],
     ...(isProd ? { "upgrade-insecure-requests": [] } : {}),
@@ -35,7 +36,7 @@ function buildContentSecurityPolicy(): string {
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  ...(isProd ? [{ key: "X-Frame-Options", value: "DENY" }] : []),
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
@@ -48,6 +49,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // The live preview is served from a proxied host, not localhost.
+  allowedDevOrigins: ["*.e2b.app"],
 
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

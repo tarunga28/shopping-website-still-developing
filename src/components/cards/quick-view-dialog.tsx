@@ -1,25 +1,32 @@
 "use client";
 
-import { Heart, ShoppingBag, Truck, ShieldCheck, Leaf } from "lucide-react";
+import Link from "next/link";
+import { ShoppingBag } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Price } from "@/components/ui/price";
 import { ProductImage } from "@/components/ui/product-image";
-import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { Rating } from "@/components/ui/rating";
 import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
-import { notify } from "@/lib/toast";
+import { WishlistButton } from "@/components/storefront/wishlist-button";
+import { storefrontContent } from "@/content/storefront";
+import { productPath } from "@/lib/storefront-paths";
 import type { ProductSummary } from "@/types";
 
 /**
- * Quick view — real working preview of the sample catalogue item.
- * Selection + quantity logic is local UI state; purchase actions defer
- * to the commerce milestone's flows.
+ * Quick view. Wishlist uses the real account action. Cart stays closed
+ * until checkout exists — the dialog says so instead of faking a bag.
  */
-export function QuickViewDialog({ product, trigger }: { product: ProductSummary; trigger: ReactNode }) {
-  const [quantity, setQuantity] = useState(1);
+export function QuickViewDialog({
+  product,
+  trigger,
+  saved = false,
+}: {
+  product: ProductSummary;
+  trigger: ReactNode;
+  saved?: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -51,22 +58,12 @@ export function QuickViewDialog({ product, trigger }: { product: ProductSummary;
 
             <div className="flex items-center gap-3">
               <Price amount={product.pricePaise} compareAt={product.compareAtPaise} size="lg" />
-              {product.compareAtPaise && product.compareAtPaise > product.pricePaise ? (
-                <Badge variant="sale">Launch price</Badge>
-              ) : null}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <p id="qv-qty-label" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-smoke">
-                Qty
-              </p>
-              <QuantitySelector value={quantity} onValueChange={setQuantity} />
             </div>
 
             <div className="mt-1 flex flex-col gap-2.5">
               <ComingSoonDialog
-                feature="Checkout opens at launch"
-                description="Secure Razorpay checkout (UPI, cards, netbanking) goes live at launch. Join the waitlist and this piece is yours first."
+                feature={storefrontContent.cart.feature}
+                description={storefrontContent.cart.description}
                 trigger={
                   <Button variant="primary" size="lg" className="w-full">
                     <ShoppingBag className="size-4" aria-hidden />
@@ -74,30 +71,21 @@ export function QuickViewDialog({ product, trigger }: { product: ProductSummary;
                   </Button>
                 }
               />
-              <Button
-                variant="outline"
-                size="md"
+              <WishlistButton
+                productId={product.id}
+                productTitle={product.title}
+                saved={saved}
+                label="Save to wishlist"
                 className="w-full"
-                onClick={() => notify.info("Wishlist saves at launch", "Sign in then to keep your favorites")}
-              >
-                <Heart className="size-4" aria-hidden />
-                Save to wishlist
+              />
+              <Button asChild variant="outline" size="md" className="w-full">
+                <Link href={productPath(product.slug)}>View product</Link>
               </Button>
             </div>
 
             <ul className="mt-2 space-y-2 border-t border-clay pt-4 text-xs text-smoke">
-              <li className="flex items-center gap-2">
-                <Truck className="size-3.5 shrink-0 text-flame" aria-hidden />
-                Printed to order · ships across India
-              </li>
-              <li className="flex items-center gap-2">
-                <ShieldCheck className="size-3.5 shrink-0 text-flame" aria-hidden />
-                Premium blanks, quality-checked piece by piece
-              </li>
-              <li className="flex items-center gap-2">
-                <Leaf className="size-3.5 shrink-0 text-flame" aria-hidden />
-                Made on demand — zero overstock
-              </li>
+              <li>Printed after you order — not kept as finished stock.</li>
+              <li>Checkout and delivery tracking are not open yet.</li>
             </ul>
           </div>
         </div>

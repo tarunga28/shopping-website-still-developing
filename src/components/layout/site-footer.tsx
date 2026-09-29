@@ -4,10 +4,12 @@ import { NewsletterForm } from "@/components/brand/newsletter-form";
 import { PaymentIcons } from "@/components/brand/payment-icons";
 import { CtaSection } from "@/components/brand/cta-section";
 import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
+import { PrivacyChoices } from "@/components/privacy/privacy-choices";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { Container } from "@/components/ui/container";
 import { InstagramIcon, PinterestIcon, XIcon, YouTubeIcon } from "@/components/ui/social-icons";
 import { footerNav, siteConfig } from "@/config/site";
+import { categoryPath } from "@/lib/storefront-paths";
 
 const socials = [
   { label: "Instagram", href: siteConfig.social.instagram, icon: InstagramIcon },
@@ -32,7 +34,11 @@ function FooterLink({ link }: { link: { label: string; href: string } }) {
   );
 }
 
-export function SiteFooter() {
+export function SiteFooter({
+  categories = [],
+}: {
+  categories?: { slug: string; name: string }[];
+}) {
   const year = new Date().getFullYear();
 
   return (
@@ -46,7 +52,7 @@ export function SiteFooter() {
               <span aria-hidden>.</span>
             </>
           }
-          action={{ href: "/#newsletter", label: "Get first dibs" }}
+          action={{ href: "/#newsletter", label: "Join the list" }}
         />
       </div>
 
@@ -55,13 +61,13 @@ export function SiteFooter() {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
           <div className="space-y-5 lg:col-span-5">
             <h2 className="font-display text-xl font-extrabold uppercase tracking-tight">
-              Get first dibs on
+              Notes when
               <br />
-              every drop<span className="text-flame">.</span>
+              there is news<span className="text-flame">.</span>
             </h2>
             <NewsletterForm source="footer" tone="ink" layout="stacked" className="max-w-sm" />
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-paper/40">
-              No spam · Unsubscribe anytime
+              Stored on the Inkline list · No third-party send claimed
             </p>
           </div>
 
@@ -71,6 +77,9 @@ export function SiteFooter() {
               <ul className="mt-4 space-y-2.5">
                 {footerNav.shop.map((link) => (
                   <FooterLink key={link.href + link.label} link={link} />
+                ))}
+                {categories.slice(0, 6).map((category) => (
+                  <FooterLink key={category.slug} link={{ label: category.name, href: categoryPath(category.slug) }} />
                 ))}
               </ul>
             </nav>
@@ -83,7 +92,7 @@ export function SiteFooter() {
                 <li>
                   <ComingSoonDialog
                     feature="Order tracking is coming"
-                    description="Once orders ship, you'll track them live here and from your account page. Tracking links also arrive by email and SMS."
+                    description="Order tracking isn't available yet. It will show here when fulfillment is live. Nothing can be tracked today."
                     trigger={
                       <button
                         type="button"
@@ -124,8 +133,7 @@ export function SiteFooter() {
               <Logo />
             </Link>
             <p className="max-w-sm text-sm leading-relaxed text-paper/60">
-              Original artwork printed on demand in India. No warehouses, no overstock — every
-              piece is made fresh when you order it.
+              Original artwork, printed after you order. Checkout and supplier fulfillment are not open yet.
             </p>
           </div>
           <div className="flex gap-2.5">
@@ -157,9 +165,12 @@ export function SiteFooter() {
             </span>
             <PaymentIcons />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-paper/50">Theme</span>
-            <ThemeSwitcher />
+          <div className="flex flex-wrap items-center gap-4">
+            <PrivacyChoices />
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-paper/50">Theme</span>
+              <ThemeSwitcher />
+            </div>
           </div>
         </Container>
       </div>

@@ -9,13 +9,22 @@ export default defineConfig({
       "@": resolve(__dirname, "src"),
       // The real `server-only` package throws outside RSC; stubbed for tests.
       "server-only": resolve(__dirname, "tests/mocks/server-only.ts"),
+      // next-auth imports these without the .js extension that Node's ESM loader wants.
+      "next/server": resolve(__dirname, "node_modules/next/server.js"),
+      "next/headers": resolve(__dirname, "node_modules/next/headers.js"),
+      "next/navigation": resolve(__dirname, "node_modules/next/navigation.js"),
     },
   },
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],
-    // Tests exercise pure logic/components only — no DB or network needed.
+    // Importing the DB module requires a URL. Tests must not open a connection.
+    env: {
+      DATABASE_URL: "postgresql://inkline:inkline@127.0.0.1:5432/inkline_test",
+      AUTH_SECRET: "test-secret-not-used-for-signing-sessions",
+      AUTH_TRUST_HOST: "true",
+    },
     name: "inkline-foundation",
   },
 });

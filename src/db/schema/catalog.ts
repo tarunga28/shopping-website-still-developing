@@ -18,6 +18,7 @@ import {
   copyrightStatusEnum,
   designPlacementEnum,
   designStatusEnum,
+  imageRoleEnum,
   imageTypeEnum,
   productStatusEnum,
   productTypeEnum,
@@ -61,6 +62,8 @@ export const collections = pgTable(
     seoTitle: text("seo_title"),
     seoDescription: text("seo_description"),
     displayOrder: integer("display_order").notNull().default(0),
+    startsAt: timestamp("starts_at", { withTimezone: true, mode: "date" }),
+    endsAt: timestamp("ends_at", { withTimezone: true, mode: "date" }),
     ...timestamps,
   },
   (table) => [uniqueIndex("collections_slug_key").on(table.slug)],
@@ -85,17 +88,31 @@ export const products = pgTable(
     seoTitle: text("seo_title"),
     seoDescription: text("seo_description"),
     publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
+    adminNotes: text("admin_notes"),
+    estimatedShippingPaise: integer("estimated_shipping_paise"),
+    estimatedPaymentFeePaise: integer("estimated_payment_fee_paise"),
+    supplierMappingRequired: boolean("supplier_mapping_required").notNull().default(false),
     ...timestamps,
   },
   (table) => [
     uniqueIndex("products_slug_key").on(table.slug),
     index("products_status_idx").on(table.status),
     index("products_type_idx").on(table.productType),
+    index("products_name_idx").on(table.name),
     index("products_published_at_idx").on(table.publishedAt),
+    index("products_status_published_idx").on(table.status, table.publishedAt),
     check("products_base_price_non_negative", sql`${table.basePrice} >= 0`),
     check(
-      "products_compare_at_non_negative",
-      sql`${table.compareAtPrice} IS NULL OR ${table.compareAtPrice} >= 0`,
+      "products_compare_at_not_below",
+      sql`${table.compareAtPrice} IS NULL OR ${table.compareAtPrice} >= ${table.basePrice}`,
+    ),
+    check(
+      "products_shipping_non_negative",
+      sql`${table.estimatedShippingPaise} IS NULL OR ${table.estimatedShippingPaise} >= 0`,
+    ),
+    check(
+      "products_fee_non_negative",
+      sql`${table.estimatedPaymentFeePaise} IS NULL OR ${table.estimatedPaymentFeePaise} >= 0`,
     ),
   ],
 );
@@ -160,7 +177,18 @@ export const productVariants = pgTable(
     uniqueIndex("product_variants_sku_key").on(table.sku),
     index("product_variants_product_idx").on(table.productId),
     index("product_variants_availability_idx").on(table.availability),
+    index("product_variants_size_idx").on(table.size),
+    index("product_variants_color_idx").on(table.color),
+    uniqueIndex("product_variants_combo_key").on(
+      table.productId,
+      sql`coalesce(${table.size}, '')`,
+      sql`coalesce(${table.color}, '')`,
+    ),
     check("product_variants_price_non_negative", sql`${table.price} >= 0`),
+    check(
+      "product_variants_compare_at_not_below",
+      sql`${table.compareAtPrice} IS NULL OR ${table.compareAtPrice} >= ${table.price}`,
+    ),
   ],
 );
 
@@ -230,7 +258,10 @@ export const productTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
   },
-  (table) => [primaryKey({ columns: [table.productId, table.tagId] })],
+  (table) => [
+    primaryKey({ columns: [table.productId, table.tagId] }),
+    index("product_tags_tag_idx").on(table.tagId),
+  ],
 );
 
 export const designTags = pgTable(
@@ -261,6 +292,7 @@ export const images = pgTable(
     mimeType: text("mime_type"),
     fileSizeBytes: integer("file_size_bytes"),
     sortOrder: integer("sort_order").notNull().default(0),
+    role: imageRoleEnum("role").notNull().default("GALLERY"),
     /** Exactly one entity FK is set per row (polymorphic, but fully
      *  referential — rows cascade with their owner). */
     productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }),
@@ -274,11 +306,73 @@ export const images = pgTable(
     index("images_product_idx").on(table.productId),
     index("images_design_idx").on(table.designId),
     index("images_variant_idx").on(table.variantId),
+    index("images_category_idx").on(table.categoryId),
+    index("images_collection_idx").on(table.collectionId),
   ],
 );
 
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
+/** Previous public slugs. A rename inserts here so old links can redirect. */
+export const productSlugHistory = pgTable(
+  "product_slug_history",
+  {
+    ...idColumn,
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("product_slug_history_slug_key").on(table.slug),
+    index("product_slug_history_product_idx").on(table.productId),
+  ],
+);
+
+/** Reusable color catalog. Product components read these rows — they do not hard-code a palette. */
+export const colors = pgTable(
+  "colors",
+  {
+    ...idColumn,
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    hex: text("hex").notNull(),
+    displayOrder: integer("display_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("colors_slug_key").on(table.slug),
+    uniqueIndex("colors_name_key").on(sql`lower(${table.name})`),
+  ],
+);
+
+/** Reusable sizes. Applicability is per product type, so a mug is not forced into XS–XXXL. */
+export const sizes = pgTable(
+  "sizes",
+  {
+    ...idColumn,
+    code: text("code").notNull(),
+    label: text("label").notNull(),
+    displayOrder: integer("display_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("sizes_code_key").on(table.code)],
+);
+
+export const sizeProductTypes = pgTable(
+  "size_product_types",
+  {
+    sizeId: uuid("size_id")
+      .notNull()
+      .references(() => sizes.id, { onDelete: "cascade" }),
+    productType: productTypeEnum("product_type").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.sizeId, table.productType] })],
+);
+
 export type ProductVariant = typeof productVariants.$inferSelect;
 export type NewProductVariant = typeof productVariants.$inferInsert;
 export type Category = typeof categories.$inferSelect;
