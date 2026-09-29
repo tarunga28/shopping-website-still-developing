@@ -1,0 +1,285 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   INKLINE DESIGN TOKENS
+   --------------------------------------------------------------------------
+   Single source of truth for color, radius, shadow and motion.
+   • Raw semantic values live on :root (light) and [data-theme="dark"].
+   • `@theme inline` maps Tailwind utilities to those variables, so every
+     component class (bg-paper, text-ink, border-clay, …) automatically
+     responds to theme switching — components never hard-code colors.
+   • Component authors use token UTILITIES only, never raw hex/hsl.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --surface-base: #f6f2e9; /* app background            */
+  --surface-raised: #efe9db; /* cards, panels            */
+  --surface-sunken: #e3dbc7; /* wells, image backdrops   */
+
+  /* Text */
+  --text-strong: #16130e; /* headings, primary text    */
+  --text-body: #26211a; /* paragraph text            */
+  --text-muted: #6f6555; /* secondary text            */
+
+  /* Borders */
+  --border-soft: #cfc4ab; /* hairlines, card borders   */
+  --border-strong: #16130e; /* brand outline borders     */
+
+  /* Brand */
+  --brand-accent: #ff4a1c; /* flame                     */
+  --brand-accent-deep: #dc3a0e;
+  --on-accent: #16130e;
+  --on-primary: #f6f2e9;
+
+  /* States */
+  --state-success: #2e7d4f;
+  --state-warning: #b0791e;
+  --state-danger: #c23b2e;
+  --state-info: #2f5bd7;
+
+  /* Shadow ink (hard offset shadows adapt per theme) */
+  --shadow-ink: rgb(22 19 14 / 1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-base: #14110c;
+  --surface-raised: #1d1913;
+  --surface-sunken: #0d0b08;
+
+  --text-strong: #f2ecdf;
+  --text-body: #d9d2c3;
+  --text-muted: #9b917f;
+
+  --border-soft: #3b3329;
+  --border-strong: #f2ecdf;
+
+  --brand-accent: #ff5a2c;
+  --brand-accent-deep: #ff4a1c;
+  --on-accent: #16130e;
+  --on-primary: #14110c;
+
+  --state-success: #3d9c66;
+  --state-warning: #d0962e;
+  --state-danger: #e05545;
+  --state-info: #5b7fef;
+
+  --shadow-ink: rgb(0 0 0 / 0.55);
+}
+
+@theme inline {
+  /* Color utilities (theme-aware) */
+  --color-paper: var(--surface-base);
+  --color-cream: var(--surface-raised);
+  --color-sand: var(--surface-sunken);
+  --color-clay: var(--border-soft);
+
+  --color-ink: var(--text-strong);
+  --color-soot: var(--text-body);
+  --color-smoke: var(--text-muted);
+
+  --color-flame: var(--brand-accent);
+  --color-flame-deep: var(--brand-accent-deep);
+
+  --color-primary: var(--text-strong);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--brand-accent);
+  --color-on-accent: var(--on-accent);
+
+  --color-background: var(--surface-base);
+  --color-surface: var(--surface-raised);
+
+  --color-success: var(--state-success);
+  --color-warning: var(--state-warning);
+  --color-danger: var(--state-danger);
+  --color-info: var(--state-info);
+
+  /* Radius scale — semantic component radii */
+  --radius-pill: 9999px; /* buttons, inputs, badges   */
+  --radius-card: 1.25rem; /* cards                     */
+  --radius-image: 1rem; /* imagery                   */
+  --radius-modal: 1.5rem; /* dialogs, drawers          */
+  --radius-panel: 2rem; /* large feature panels      */
+
+  /* Shadow system — used sparingly, mostly hard brand shadows */
+  --shadow-hard-sm: 4px 4px 0 0 var(--shadow-ink);
+  --shadow-hard: 8px 8px 0 0 var(--shadow-ink);
+  --shadow-hard-lg: 12px 12px 0 0 var(--shadow-ink);
+  --shadow-lift: 0 10px 30px -12px rgb(22 19 14 / 0.18);
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+}
+
+@theme {
+  /* Typography families (wired to next/font CSS variables in root layout) */
+  --font-display: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex), ui-monospace, "SFMono-Regular", monospace;
+
+  /* Motion tokens */
+  --animate-marquee: marquee 30s linear infinite;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+}
+
+/* --------------------------------------------------------------------------
+   Typography utilities — the approved type scale.
+   Use these instead of hand-rolling font classes in new components.
+   -------------------------------------------------------------------------- */
+
+@utility type-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+}
+
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.015em;
+  line-height: 0.98;
+  font-size: clamp(1.9rem, 4vw, 3.25rem);
+}
+
+@utility type-h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+}
+
+@utility type-h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.15;
+  font-size: 1.125rem;
+}
+
+@utility type-body {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--text-body);
+}
+
+@utility type-small {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+@utility type-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@utility type-caption {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+@utility text-outline-ink {
+  -webkit-text-stroke: 1.5px var(--text-strong);
+  color: transparent;
+}
+
+@utility text-outline-soft {
+  -webkit-text-stroke: 1px var(--text-muted);
+  color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Base element preferences
+   -------------------------------------------------------------------------- */
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background-color: var(--surface-base);
+  color: var(--text-strong);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Paper grain — subtle fixed noise overlay (decorative, non-interactive) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--brand-accent);
+  color: var(--on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-soft) transparent;
+}
+*::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: 999px;
+}
+
+:target {
+  scroll-margin-top: 5.5rem;
+}
