@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { linesToList, textToSpecs } from "@/lib/catalog/product-details";
 import { AppError, ValidationError } from "@/lib/errors";
 import { requireCatalogEditor } from "@/server/auth/catalog-access";
 import { authRequestContext } from "@/server/auth/session";
@@ -58,6 +59,12 @@ function ids(form: FormData, key: string): string[] {
   return form.getAll(key).filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
+/** Spec lines must read "Label: Value". Tell the editor instead of silently dropping a line. */
+function detailsProblem(form: FormData): string | null {
+  const bad = linesToList(text(form, "detailSpecs")).find((line) => line.indexOf(":") <= 0 || line.endsWith(":"));
+  return bad ? `Each specification needs the form "Label: Value" (check "${bad.slice(0, 40)}").` : null;
+}
+
 function productInput(form: FormData) {
   return productWriteSchema.safeParse({
     name: text(form, "name"),
@@ -83,6 +90,14 @@ function productInput(form: FormData) {
     supplierMappingRequired: form.get("supplierMappingRequired") === "on",
     designId: text(form, "designId"),
     placement: text(form, "placement") || "FRONT",
+    details: {
+      features: linesToList(text(form, "detailFeatures")),
+      materials: text(form, "detailMaterials"),
+      fit: text(form, "detailFit"),
+      care: linesToList(text(form, "detailCare")),
+      printDetails: text(form, "detailPrintDetails"),
+      specs: textToSpecs(text(form, "detailSpecs")),
+    },
   });
 }
 
@@ -91,6 +106,8 @@ function refresh(paths: string[]) {
 }
 
 export async function createProductAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
+  const problem = detailsProblem(form);
+  if (problem) return { ok: false, error: problem };
   const parsed = productInput(form);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Please check the form." };
   try {
@@ -105,6 +122,8 @@ export async function createProductAction(_prev: CatalogActionResult | null, for
 export async function updateProductAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
   const id = text(form, "id");
   if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Missing product." };
+  const problem = detailsProblem(form);
+  if (problem) return { ok: false, error: problem };
   const parsed = productInput(form);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Please check the form." };
   try {

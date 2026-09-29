@@ -19,6 +19,25 @@ export const STOREFRONT_EVENTS = {
   ACCOUNT_OPENED: "ACCOUNT_OPENED",
   CART_OPENED: "CART_OPENED",
   WISHLIST_OPENED: "WISHLIST_OPENED",
+  /** Catalog browsing. Payloads carry slugs, counts and filter *names* only — never PII. */
+  CATALOG_VIEWED: "CATALOG_VIEWED",
+  CATEGORY_VIEWED: "CATEGORY_VIEWED",
+  COLLECTION_VIEWED: "COLLECTION_VIEWED",
+  FILTER_APPLIED: "FILTER_APPLIED",
+  FILTER_CLEARED: "FILTER_CLEARED",
+  SORT_CHANGED: "SORT_CHANGED",
+  PAGINATION_CLICKED: "PAGINATION_CLICKED",
+  WISHLIST_CLICKED: "WISHLIST_CLICKED",
+  /** Product page. Payloads carry slugs, option keys and counts only — never PII or prices the client typed. */
+  PRODUCT_VIEWED: "PRODUCT_VIEWED",
+  PRODUCT_IMAGE_VIEWED: "PRODUCT_IMAGE_VIEWED",
+  VARIANT_SELECTED: "VARIANT_SELECTED",
+  SIZE_SELECTED: "SIZE_SELECTED",
+  COLOR_SELECTED: "COLOR_SELECTED",
+  WISHLIST_ADDED: "WISHLIST_ADDED",
+  WISHLIST_REMOVED: "WISHLIST_REMOVED",
+  ADD_TO_CART_CLICKED: "ADD_TO_CART_CLICKED",
+  SIZE_GUIDE_OPENED: "SIZE_GUIDE_OPENED",
 } as const;
 
 export type StorefrontEventName = (typeof STOREFRONT_EVENTS)[keyof typeof STOREFRONT_EVENTS];
@@ -42,8 +61,13 @@ export function registerAnalyticsSink(next: AnalyticsSink | null): void {
 
 export function trackStorefrontEvent(event: StorefrontEvent): void {
   if (!sink) return;
-  if (!hasConsent(event.consent)) return;
-  sink(event);
+  // Analytics must never break the page: a failing sink or consent check is swallowed.
+  try {
+    if (!hasConsent(event.consent)) return;
+    sink(event);
+  } catch {
+    /* intentionally ignored */
+  }
 }
 
 export function trackFromDataset(element: Element): void {

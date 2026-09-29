@@ -17,6 +17,9 @@
 
 # drizzle
 /drizzle/*.sql
+!/drizzle/0003_*.sql
+!/drizzle/0004_*.sql
+!/drizzle/0005_*.sql
 /coverage
 
 # local dev uploads (avatar storage driver: filesystem in dev)

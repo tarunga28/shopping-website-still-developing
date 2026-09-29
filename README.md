@@ -62,3 +62,29 @@ log with idempotency keys. `npm run db:verify` asserts the contract
 
 See `docs/ARCHITECTURE.md` for the module map, conventions and the
 milestone seam points for auth, catalog, cart, payments and POD.
+
+## Catalog browsing (Shop, Category, Collection)
+
+`/shop`, `/category/[slug]` and `/collection/[slug]` are server-rendered from
+`src/services/catalog/` (visibility rules in `visibility.ts`, queries in
+`public-catalog.service.ts`, tagged caching in `cached.ts`, page loader in
+`listing.service.ts`). The URL is the only filter/sort/page state; params are
+parsed and validated in `src/lib/catalog/params.ts`. Every admin catalog write
+expires the `catalog` cache tag (`invalidateCatalogCache`). Migration
+`drizzle/0004_catalog_browsing.sql` adds the browsing indexes and slug-history
+tables.
+
+Public API: `GET /api/products`, `/api/categories`, `/api/collections`
+(`{ data, pagination }`, rate limited, validated params).
+
+### Database integration tests
+
+`tests/integration` needs a disposable PostgreSQL database with the schema
+applied. It is skipped unless `TEST_DATABASE_URL` is set:
+
+```bash
+DATABASE_URL=$TEST_DATABASE_URL npm run db:push
+TEST_DATABASE_URL=postgresql://user:pass@127.0.0.1:5432/inkline_test npm test
+```
+
+Fixtures use a unique prefix and are deleted afterwards.

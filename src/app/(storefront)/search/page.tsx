@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { CatalogBrowser } from "@/components/catalog/catalog-browser";
+import { CatalogLoadError } from "@/components/catalog/catalog-states";
 import { CatalogIntro } from "@/components/storefront/catalog-intro";
 import { SearchForm } from "@/components/storefront/search-form";
 import { Container } from "@/components/ui/container";
 import { EmptySearch } from "@/components/ui/empty-state";
+import { ProductCard } from "@/components/ui/product-card";
 import { searchMetadata } from "@/lib/seo";
 import { sanitizeSearchQuery } from "@/lib/slug";
-import { getSavedProductIds } from "@/services/storefront.service";
+import { getSavedProductIds, loadSearch } from "@/services/storefront.service";
 
 export async function generateMetadata({
   searchParams,
@@ -24,7 +25,11 @@ export default async function SearchPage({
 }) {
   const params = await searchParams;
   const query = sanitizeSearchQuery(typeof params.q === "string" ? params.q : params.q?.[0]);
-  const savedIds = await getSavedProductIds().catch(() => [] as string[]);
+  const [savedIds, results] = await Promise.all([
+    getSavedProductIds().catch(() => [] as string[]),
+    query.length >= 2 ? loadSearch(query) : Promise.resolve(null),
+  ]);
+  const saved = new Set(savedIds);
 
   return (
     <>
@@ -42,8 +47,18 @@ export default async function SearchPage({
         <div className="mt-10">
           {query.length > 0 && query.length < 2 ? (
             <EmptySearch query={query} />
-          ) : query.length >= 2 ? (
-            <CatalogBrowser pathname="/search" searchParams={{ ...params, q: query }} locked={{ q: query }} title="Search results" savedIds={savedIds} />
+          ) : results?.status === "error" ? (
+            <CatalogLoadError />
+          ) : results && results.data.length === 0 ? (
+            <EmptySearch query={query} />
+          ) : results ? (
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 xl:grid-cols-4">
+              {results.data.map((product, index) => (
+                <li key={product.id}>
+                  <ProductCard product={product} saved={saved.has(product.id)} priority={index < 4} />
+                </li>
+              ))}
+            </ul>
           ) : null}
         </div>
       </Container>

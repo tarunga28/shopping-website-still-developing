@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/catalog.service", () => ({
-  listActiveProductSummaries: vi.fn(),
+  listSitemapProducts: vi.fn(),
   listStorefrontCategories: vi.fn(),
   listActiveCollections: vi.fn(),
 }));
@@ -13,7 +13,7 @@ describe("sitemap", () => {
 
   it("still returns static routes when the catalogue API fails", async () => {
     const catalog = await import("@/services/catalog.service");
-    vi.mocked(catalog.listActiveProductSummaries).mockRejectedValue(new Error("database down"));
+    vi.mocked(catalog.listSitemapProducts).mockRejectedValue(new Error("database down"));
     vi.mocked(catalog.listStorefrontCategories).mockRejectedValue(new Error("database down"));
     vi.mocked(catalog.listActiveCollections).mockRejectedValue(new Error("database down"));
 

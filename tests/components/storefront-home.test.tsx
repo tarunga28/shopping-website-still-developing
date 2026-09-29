@@ -173,7 +173,7 @@ describe("homepage sections", () => {
     expect(imageLink).toHaveAttribute("href", "/product/offbeat-grid-tee");
     expect(imageLink.querySelector("img")).toHaveAttribute("alt", product.imageAlt);
     expect(scope.getByRole("link", { name: product.title })).toHaveAttribute("href", "/product/offbeat-grid-tee");
-    expect(scope.getByRole("button", { name: /save offbeat grid tee/i })).toBeInTheDocument();
+    expect(scope.getByRole("button", { name: /add offbeat grid tee to wishlist/i })).toBeInTheDocument();
     expect(scope.getByRole("button", { name: /quick view offbeat grid tee/i })).toBeInTheDocument();
     expect(screen.queryByText(/prod_1/)).not.toBeInTheDocument();
   });

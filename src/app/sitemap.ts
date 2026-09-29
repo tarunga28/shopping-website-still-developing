@@ -3,7 +3,7 @@ import { absoluteUrl } from "@/lib/seo";
 import { categoryPath, collectionPath, productPath } from "@/lib/storefront-paths";
 import {
   listActiveCollections,
-  listActiveProductSummaries,
+  listSitemapProducts,
   listStorefrontCategories,
 } from "@/services/catalog.service";
 
@@ -19,6 +19,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: absoluteUrl("/shop"), lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: absoluteUrl("/categories"), lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: absoluteUrl("/collections"), lastModified: now, changeFrequency: "weekly", priority: 0.6 },
     { url: absoluteUrl("/search"), lastModified: now, changeFrequency: "weekly", priority: 0.3 },
     { url: absoluteUrl("/faqs"), lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: absoluteUrl("/legal/privacy"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
@@ -29,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const [products, categories, collections] = await Promise.all([
-      listActiveProductSummaries(1000),
+      listSitemapProducts(5000),
       listStorefrontCategories(),
       listActiveCollections(),
     ]);
@@ -49,7 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })),
       ...products.map((product) => ({
         url: absoluteUrl(productPath(product.slug)),
-        lastModified: product.publishedAt ? new Date(product.publishedAt) : now,
+        lastModified: product.updatedAt,
         changeFrequency: "weekly" as const,
         priority: 0.8,
       })),

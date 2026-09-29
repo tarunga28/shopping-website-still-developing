@@ -4,9 +4,12 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { invalidateCatalogCache } from "@/lib/catalog/cache";
 import {
   categories,
+  categorySlugHistory,
   collections,
+  collectionSlugHistory,
   colors,
   designs,
   images,
@@ -22,11 +25,14 @@ import {
   productTags,
   productVariants,
   reviews,
+  sizeCharts,
   sizeProductTypes,
   sizes,
   tags,
 } from "@/db/schema";
 import { withTransaction, type DbClient } from "@/db/utils";
+import { hasProductDetails, type ProductDetails } from "@/lib/catalog/product-details";
+import { sizeChartSchema } from "@/lib/catalog/size-chart";
 import { inspectProductImage } from "@/lib/image-file";
 import {
   assertCompareAt,
@@ -47,6 +53,7 @@ import {
   slugFromName,
   tagSlug,
   wouldCreateCategoryCycle,
+  isProductType,
   type CatalogProductType,
   type SizeRule,
 } from "@/lib/catalog-rules";
@@ -124,6 +131,10 @@ function rethrowUnique(error: unknown): never {
 }
 
 async function audit(actor: CatalogActor, action: string, entityType: string, entityId: string, metadata?: Record<string, unknown>) {
+  // Every catalog write ends here, so this is where the public cache is expired:
+  // price, status, category, collection, image and content changes reach the
+  // storefront on the next request instead of waiting for the TTL.
+  invalidateCatalogCache();
   await writeAudit({
     action,
     entityType,
@@ -241,6 +252,11 @@ function pricePair(priceRaw: string, compareRaw: string | null | undefined) {
   return { pricePaise, compareAtPaise };
 }
 
+/** Empty copy is stored as NULL so "no details" is one representation. */
+function detailsForStorage(details: NonNullable<ProductWriteInput["details"]>): ProductDetails | null {
+  return hasProductDetails(details) ? details : null;
+}
+
 export async function createProduct(actor: CatalogActor, input: ProductWriteInput): Promise<{ id: string; slug: string }> {
   assertEditor(actor);
   const prices = pricePair(input.basePrice, input.compareAt);
@@ -270,6 +286,7 @@ export async function createProduct(actor: CatalogActor, input: ProductWriteInpu
         estimatedShippingPaise: shipping,
         estimatedPaymentFeePaise: fee,
         supplierMappingRequired: input.supplierMappingRequired,
+        details: input.details ? detailsForStorage(input.details) : null,
       })
       .returning({ id: products.id, slug: products.slug });
     if (!row) throw new ValidationError("The product could not be created.");
@@ -323,6 +340,8 @@ export async function updateProduct(actor: CatalogActor, id: string, input: Prod
         estimatedShippingPaise: shipping,
         estimatedPaymentFeePaise: fee,
         supplierMappingRequired: input.supplierMappingRequired,
+        // `undefined` leaves the stored copy untouched (API callers that do not manage it).
+        ...(input.details ? { details: detailsForStorage(input.details) } : {}),
         updatedAt: new Date(),
       })
       .where(eq(products.id, id));
@@ -437,6 +456,7 @@ export async function duplicateProduct(actor: CatalogActor, id: string): Promise
         estimatedShippingPaise: source.estimatedShippingPaise,
         estimatedPaymentFeePaise: source.estimatedPaymentFeePaise,
         supplierMappingRequired: source.supplierMappingRequired,
+        details: source.details,
       })
       .returning({ id: products.id, slug: products.slug });
     if (!created) throw new ValidationError("The copy could not be created.");
@@ -467,24 +487,6 @@ export async function duplicateProduct(actor: CatalogActor, id: string): Promise
         })),
       );
     }
-    if (imageRows.length) {
-      await tx.insert(images).values(
-        imageRows.map((row) => ({
-          type: row.type,
-          url: row.url,
-          storageKey: row.storageKey,
-          altText: row.altText,
-          width: row.width,
-          height: row.height,
-          mimeType: row.mimeType,
-          fileSizeBytes: row.fileSizeBytes,
-          sortOrder: row.sortOrder,
-          role: row.role,
-          productId: created.id,
-        })),
-      );
-    }
-
     const variantIdMap = new Map<string, string>();
     for (const variant of variantRows) {
       const [copyVariant] = await tx
@@ -503,6 +505,26 @@ export async function duplicateProduct(actor: CatalogActor, id: string): Promise
         })
         .returning({ id: productVariants.id });
       if (copyVariant) variantIdMap.set(variant.id, copyVariant.id);
+    }
+
+    if (imageRows.length) {
+      await tx.insert(images).values(
+        imageRows.map((row) => ({
+          type: row.type,
+          url: row.url,
+          storageKey: row.storageKey,
+          altText: row.altText,
+          width: row.width,
+          height: row.height,
+          mimeType: row.mimeType,
+          fileSizeBytes: row.fileSizeBytes,
+          sortOrder: row.sortOrder,
+          role: row.role,
+          productId: created.id,
+          // Keep a variant-specific photo attached to the COPY of its variant, never the original's.
+          variantId: row.variantId ? (variantIdMap.get(row.variantId) ?? null) : null,
+        })),
+      );
     }
 
     const productMaps = await tx.select().from(podProductMappings).where(eq(podProductMappings.productId, id));
@@ -816,10 +838,63 @@ export async function bulkCatalog(actor: CatalogActor, input: BulkInput) {
   return { updated: input.productIds.length - failures.length, failures };
 }
 
+
+/**
+ * Renaming a public category/collection keeps the old URL alive: the previous
+ * slug is stored so the storefront can 308 to the new one. A slug that an
+ * another entity used to own stays reserved, so old links never point at
+ * different content.
+ */
+async function recordSlugChange(
+  client: DbClient,
+  kind: "category" | "collection",
+  id: string,
+  currentSlug: string,
+  nextSlug: string,
+) {
+  const reservedBy =
+    kind === "category"
+      ? (
+          await client
+            .select({ owner: categorySlugHistory.categoryId })
+            .from(categorySlugHistory)
+            .where(eq(categorySlugHistory.slug, nextSlug))
+            .limit(1)
+        )[0]?.owner
+      : (
+          await client
+            .select({ owner: collectionSlugHistory.collectionId })
+            .from(collectionSlugHistory)
+            .where(eq(collectionSlugHistory.slug, nextSlug))
+            .limit(1)
+        )[0]?.owner;
+  if (reservedBy && reservedBy !== id) {
+    throw new ValidationError("That slug is reserved by an older public link. Choose another.");
+  }
+  if (kind === "category") {
+    // Returning to a previous slug: it is current again, so it leaves history.
+    if (reservedBy) await client.delete(categorySlugHistory).where(eq(categorySlugHistory.slug, nextSlug));
+    if (currentSlug !== nextSlug) {
+      await client.insert(categorySlugHistory).values({ categoryId: id, slug: currentSlug }).onConflictDoNothing();
+    }
+  } else {
+    if (reservedBy) await client.delete(collectionSlugHistory).where(eq(collectionSlugHistory.slug, nextSlug));
+    if (currentSlug !== nextSlug) {
+      await client.insert(collectionSlugHistory).values({ collectionId: id, slug: currentSlug }).onConflictDoNothing();
+    }
+  }
+}
+
 export async function createCategory(actor: CatalogActor, input: CategoryWriteInput) {
   assertEditor(actor);
   const slug = input.slug?.trim() ? input.slug.trim().toLowerCase() : slugFromName(input.name);
   rule(() => assertSlug(slug));
+  const [reserved] = await db
+    .select({ id: categorySlugHistory.id })
+    .from(categorySlugHistory)
+    .where(eq(categorySlugHistory.slug, slug))
+    .limit(1);
+  if (reserved) throw new ValidationError("That slug is reserved by an older public link. Choose another.");
   const [row] = await db
     .insert(categories)
     .values({
@@ -844,24 +919,29 @@ export async function updateCategory(actor: CatalogActor, id: string, input: Cat
   const slug = input.slug?.trim() ? input.slug.trim().toLowerCase() : slugFromName(input.name);
   rule(() => assertSlug(slug));
   const parentId = empty(input.parentId);
-  const rows = await db.select({ id: categories.id, parentId: categories.parentId }).from(categories);
+  const rows = await db
+    .select({ id: categories.id, parentId: categories.parentId, slug: categories.slug })
+    .from(categories);
   const parentOf = new Map(rows.map((row) => [row.id, row.parentId]));
-  if (!parentOf.has(id)) throw new NotFoundError("That category does not exist.");
+  const current = rows.find((row) => row.id === id);
+  if (!current) throw new NotFoundError("That category does not exist.");
   if (wouldCreateCategoryCycle(id, parentId, parentOf)) throw new ValidationError("A category cannot be its own parent.");
-  await db
-    .update(categories)
-    .set({
-      name: input.name.trim(),
-      slug,
-      description: empty(input.description),
-      parentId,
-      seoTitle: empty(input.seoTitle),
-      seoDescription: empty(input.seoDescription),
-      displayOrder: input.displayOrder,
-      updatedAt: new Date(),
-    })
-    .where(eq(categories.id, id))
-    .catch(rethrowUnique);
+  await withTransaction(async (tx) => {
+    await recordSlugChange(tx, "category", id, current.slug, slug);
+    await tx
+      .update(categories)
+      .set({
+        name: input.name.trim(),
+        slug,
+        description: empty(input.description),
+        parentId,
+        seoTitle: empty(input.seoTitle),
+        seoDescription: empty(input.seoDescription),
+        displayOrder: input.displayOrder,
+        updatedAt: new Date(),
+      })
+      .where(eq(categories.id, id));
+  }).catch(rethrowUnique);
   await audit(actor, "category.changed", "category", id);
 }
 
@@ -918,6 +998,19 @@ export async function saveCollection(actor: CatalogActor, input: CollectionWrite
       endsAt,
       updatedAt: new Date(),
     };
+    if (!id) {
+      const [reserved] = await tx
+        .select({ id: collectionSlugHistory.id })
+        .from(collectionSlugHistory)
+        .where(eq(collectionSlugHistory.slug, slug))
+        .limit(1);
+      if (reserved) throw new ValidationError("That slug is reserved by an older public link. Choose another.");
+    }
+    if (id) {
+      const [existing] = await tx.select({ slug: collections.slug }).from(collections).where(eq(collections.id, id)).limit(1);
+      if (!existing) throw new NotFoundError("That collection does not exist.");
+      await recordSlugChange(tx, "collection", id, existing.slug, slug);
+    }
     const row = id
       ? (await tx.update(collections).set(values).where(eq(collections.id, id)).returning({ id: collections.id }))[0]
       : (await tx.insert(collections).values(values).returning({ id: collections.id }))[0];
@@ -1058,6 +1151,42 @@ export async function listEditorOptions() {
     db.select({ name: tags.name, slug: tags.slug }).from(tags).orderBy(asc(tags.name)).limit(100),
   ]);
   return { categories: categoryRows, collections: collectionRows, colors: colorRows, sizes: sizeRows, designs: designRows, tags: tagRows };
+}
+
+/**
+ * Create or replace the active size chart for a product type. The chart is
+ * validated (every row as wide as the header, plain-text cells only) so the
+ * storefront can render it without further checks.
+ */
+export async function saveSizeChart(actor: CatalogActor, productType: CatalogProductType, input: unknown) {
+  assertEditor(actor);
+  const parsed = sizeChartSchema.safeParse(input);
+  if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "That size chart isn't valid.");
+  if (!isProductType(productType)) throw new ValidationError("Unknown product type.");
+  const chart = parsed.data;
+  const saved = await withTransaction(async (tx) => {
+    const [current] = await tx
+      .select({ id: sizeCharts.id })
+      .from(sizeCharts)
+      .where(and(eq(sizeCharts.productType, productType), eq(sizeCharts.isActive, true)))
+      .limit(1);
+    const values = {
+      title: chart.title,
+      unit: chart.unit,
+      columns: chart.columns,
+      rows: chart.rows,
+      notes: chart.notes,
+    };
+    if (current) {
+      await tx.update(sizeCharts).set({ ...values, updatedAt: new Date() }).where(eq(sizeCharts.id, current.id));
+      return current.id;
+    }
+    const [created] = await tx.insert(sizeCharts).values({ productType, ...values }).returning({ id: sizeCharts.id });
+    if (!created) throw new ValidationError("The size chart could not be saved.");
+    return created.id;
+  });
+  await audit(actor, "size_chart.saved", "size_chart", saved, { productType });
+  return { id: saved };
 }
 
 export async function getAdminProduct(id: string) {

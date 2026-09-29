@@ -10,6 +10,7 @@ import {
   Star,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ export function EmptyState({
           size="md"
           {...(action.href ? { asChild: true } : { onClick: action.onClick })}
         >
-          {action.href ? <a href={action.href}>{action.label}</a> : action.label}
+          {action.href ? <Link href={action.href}>{action.label}</Link> : action.label}
         </Button>
       ) : null}
       {children}
