@@ -1,47 +1,59 @@
 import { CategoryCard } from "@/components/cards/category-card";
-import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
+import { SectionFallback } from "@/components/home/section-fallback";
 import { Section, SectionHeader } from "@/components/layout/section";
-import { sampleCategories } from "@/lib/placeholder-data";
+import { EmptyState } from "@/components/ui/empty-state";
+import { storefrontContent } from "@/content/storefront";
+import type { StorefrontCategory } from "@/types/storefront";
+import type { SectionStatus } from "@/types/storefront";
+import { LayoutGrid } from "lucide-react";
 
-/**
- * Editorial category mosaic. Tiles open an honest "coming soon" dialog
- * until the category routes ship — no dead links.
- */
-export function Categories() {
+export function Categories({
+  categories,
+  status = "ok",
+}: {
+  categories: StorefrontCategory[];
+  status?: SectionStatus;
+}) {
+  const copy = storefrontContent.categories;
+
+  if (status === "error") {
+    return <SectionFallback id="categories" title="Categories didn't load" />;
+  }
+
   return (
     <Section id="categories">
       <SectionHeader
-        eyebrow="01 — Shop by category"
+        eyebrow={copy.eyebrow}
         title={
           <>
-            Pick your
+            {copy.titleLead}
             <br />
-            canvas<span className="text-flame">.</span>
+            {copy.titleAccent}
+            <span className="text-flame">.</span>
           </>
         }
-        description="Seven ways to wear, hang, sip and carry original art. Every category is printed on demand, one piece at a time."
+        description={copy.description}
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {sampleCategories.map((category, index) => (
-          <ComingSoonDialog
-            key={category.slug}
-            feature={`${category.name} are dropping soon`}
-            description={`The ${category.name.toLowerCase()} catalogue is being finalized with our artists right now. Join the waitlist and you'll be first to know when it goes live.`}
-            trigger={
-              <button
-                type="button"
-                className={
-                  "h-full w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame " +
-                  (index === 0 ? "col-span-2 row-span-2" : "")
-                }
-              >
-                <CategoryCard category={category} size={index === 0 ? "feature" : "default"} />
-              </button>
-            }
-          />
-        ))}
-      </div>
+      {categories.length === 0 ? (
+        <EmptyState
+          icon={LayoutGrid}
+          title="No categories published"
+          description="Categories show up here once they have published products. Nothing is invented to fill the grid."
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {categories.map((category, index) => (
+            <CategoryCard
+              key={category.slug}
+              category={category}
+              cta={copy.ctaLabel}
+              size={index === 0 && categories.length >= 4 ? "feature" : "default"}
+              className={index === 0 && categories.length >= 4 ? "col-span-2 lg:row-span-2" : undefined}
+            />
+          ))}
+        </div>
+      )}
     </Section>
   );
 }

@@ -5,8 +5,9 @@ import { ArrowUpRight, Asterisk } from "lucide-react";
 import type { ReactNode } from "react";
 import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { InstagramIcon, XIcon, YouTubeIcon } from "@/components/ui/social-icons";
-import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
 import { mainNav, siteConfig } from "@/config/site";
+import { collectionPath, loginPath } from "@/lib/storefront-paths";
+import type { StorefrontCollection } from "@/types/storefront";
 
 const socials = [
   { label: "Instagram", href: siteConfig.social.instagram, icon: InstagramIcon },
@@ -14,14 +15,21 @@ const socials = [
   { label: "YouTube", href: siteConfig.social.youtube, icon: YouTubeIcon },
 ];
 
-/** Off-canvas navigation — first-class mobile UX with large touch targets. */
 export function MobileNav({
   trigger,
   user,
+  collections = [],
 }: {
   trigger: ReactNode;
   user: { name: string; role: string } | null;
+  collections?: StorefrontCollection[];
 }) {
+  const links = [
+    ...mainNav.map((item) => ({ label: item.label, href: item.href })),
+    { label: "Search", href: "/search" },
+    { label: "Wishlist", href: user ? "/account/wishlist" : loginPath("/account/wishlist") },
+  ];
+
   return (
     <Drawer>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
@@ -30,52 +38,55 @@ export function MobileNav({
           <Asterisk className="size-6 text-flame" aria-hidden />
           <DrawerTitle>{siteConfig.name}</DrawerTitle>
         </div>
-        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-smoke">
-          {siteConfig.tagline}
-        </p>
+        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-smoke">{siteConfig.tagline}</p>
 
-        <nav aria-label="Mobile" className="mt-10 flex flex-col">
-          {mainNav.map((item, index) => (
+        <nav aria-label="Mobile" className="mt-8 flex flex-col">
+          {links.map((item, index) => (
             <Link
               key={item.href + item.label}
               href={item.href}
-              className="group flex items-baseline gap-3 border-b border-clay py-4 font-display text-3xl font-extrabold uppercase tracking-tight transition-colors hover:text-flame"
+              className="group flex min-h-14 items-center gap-3 border-b border-clay font-display text-3xl font-extrabold uppercase tracking-tight transition-colors hover:text-flame focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-flame"
             >
-              <span className="font-mono text-[10px] font-normal tracking-widest text-smoke">
-                0{index + 1}
-              </span>
+              <span className="font-mono text-[10px] font-normal tracking-widest text-smoke">0{index + 1}</span>
               {item.label}
             </Link>
           ))}
-          <ComingSoonDialog
-            feature="Wishlists are coming"
-            description="Save designs you love. Wishlists unlock with customer accounts in the next release."
-            trigger={
-              <button
-                type="button"
-                className="flex items-baseline gap-3 border-b border-clay py-4 text-left font-display text-3xl font-extrabold uppercase tracking-tight text-smoke/60 transition-colors hover:text-flame"
-              >
-                <span className="font-mono text-[10px] font-normal tracking-widest">0{mainNav.length + 1}</span>
-                Wishlist
-              </button>
-            }
-          />
         </nav>
 
-        <div className="mt-auto space-y-6">
+        {collections.length > 0 ? (
+          <div className="mt-6">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-smoke">Collections</p>
+            <ul className="mt-2 space-y-1">
+              {collections.slice(0, 6).map((collection) => (
+                <li key={collection.slug}>
+                  <Link
+                    href={collectionPath(collection.slug)}
+                    className="inline-flex min-h-10 items-center text-sm font-semibold hover:text-flame"
+                  >
+                    {collection.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="mt-auto space-y-6 pt-8">
           {user ? (
             <Link
               href="/account"
-              className="flex items-center justify-center gap-2 rounded-pill border-[1.5px] border-ink bg-ink px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-paper transition-colors hover:bg-flame hover:text-on-accent"
+              data-track="ACCOUNT_OPENED"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-pill border-[1.5px] border-ink bg-ink px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-paper transition-colors hover:bg-flame hover:text-on-accent"
             >
-              My account — {user.name.split(" ")[0]}
+              Account — {user.name.split(" ")[0]}
             </Link>
           ) : (
             <Link
               href="/login"
-              className="flex items-center justify-center gap-2 rounded-pill border-[1.5px] border-ink bg-flame px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-on-accent transition-colors hover:bg-ink hover:text-paper"
+              data-track="ACCOUNT_OPENED"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-pill border-[1.5px] border-ink bg-flame px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-on-accent transition-colors hover:bg-ink hover:text-paper"
             >
-              Sign in / Create account
+              Login
             </Link>
           )}
           <a
@@ -83,7 +94,7 @@ export function MobileNav({
             className="group inline-flex items-center gap-1.5 text-sm text-smoke transition-colors hover:text-ink"
           >
             {siteConfig.contact.email}
-            <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            <ArrowUpRight className="size-3.5" aria-hidden />
           </a>
           <div className="flex gap-3">
             {socials.map(({ label, href, icon: Icon }) => (

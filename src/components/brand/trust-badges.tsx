@@ -1,47 +1,68 @@
-import { Leaf, Printer, ShieldCheck, Truck, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { storefrontContent, type TrustItem } from "@/content/storefront";
+import { StorefrontGlyph } from "@/components/storefront/icon";
+import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 
-/**
- * Trust indicators — only verifiable claims about how the model works.
- */
-const indicators: { icon: LucideIcon; label: string; description: string }[] = [
-  { icon: Printer, label: "Printed to order", description: "Made after you order, never warehoused" },
-  { icon: ShieldCheck, label: "Quality checked", description: "Each piece inspected before packing" },
-  { icon: Truck, label: "Tracked shipping", description: "Pan-India delivery with live updates" },
-  { icon: Leaf, label: "Zero overstock", description: "No mass production, no landfill fashion" },
-];
+const statusLabel: Record<TrustItem["status"], string> = {
+  live: "Available",
+  upcoming: "Not open yet",
+  model: "How orders work",
+};
 
+/**
+ * Trust indicators. Each item is labeled with whether it is live, the
+ * business model, or still upcoming — no unsupported guarantees.
+ */
 export function TrustIndicators({
   variant = "row",
   className,
+  items = storefrontContent.trust,
 }: {
   variant?: "row" | "grid";
   className?: string;
+  items?: readonly TrustItem[];
 }) {
   return (
     <ul
       className={cn(
-        variant === "grid" ? "grid grid-cols-2 gap-3 lg:grid-cols-4" : "flex flex-wrap gap-x-6 gap-y-3",
+        variant === "grid" ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-wrap gap-x-6 gap-y-3",
         className,
       )}
     >
-      {indicators.map(({ icon: Icon, label, description }) => (
+      {items.map((item) => (
         <li
-          key={label}
+          key={item.id}
           className={cn(
-            "flex items-center gap-2.5",
+            "flex items-start gap-2.5",
             variant === "grid" && "rounded-card border-[1.5px] border-clay bg-cream p-4",
           )}
         >
-          <Icon className="size-4 shrink-0 text-flame" aria-hidden />
-          {variant === "grid" ? (
-            <span>
-              <span className="block text-xs font-semibold uppercase tracking-[0.1em]">{label}</span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-smoke">{description}</span>
+          <StorefrontGlyph name={item.icon} className="mt-0.5 size-4 shrink-0 text-flame" />
+          <span>
+            <span className="block text-xs font-semibold uppercase tracking-[0.1em]">
+              {item.label}
+              <span className="ml-2 font-mono text-[9px] font-normal tracking-[0.14em] text-smoke">
+                {statusLabel[item.status]}
+              </span>
             </span>
-          ) : (
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-smoke">{label}</span>
-          )}
+            {variant === "grid" ? (
+              <span className="mt-1 block text-[11px] leading-snug text-smoke">
+                {item.id === "support" ? (
+                  <>
+                    {item.description}{" "}
+                    <Link href={`mailto:${siteConfig.contact.supportEmail}`} className="underline decoration-flame underline-offset-2">
+                      {siteConfig.contact.supportEmail}
+                    </Link>
+                  </>
+                ) : (
+                  item.description
+                )}
+              </span>
+            ) : (
+              <span className="sr-only">{item.description}</span>
+            )}
+          </span>
         </li>
       ))}
     </ul>

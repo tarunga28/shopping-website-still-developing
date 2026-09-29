@@ -27,9 +27,14 @@ export interface ProductSummary {
   slug: string;
   title: string;
   category: string;
+  /** Primary category slug, when the product is filed under one. */
+  categorySlug?: string;
+  /** Active collection slugs this product belongs to. */
+  collectionSlugs?: string[];
   pricePaise: number;
   compareAtPaise?: number;
   image: string;
+  imageAlt?: string;
   /** Second angle shown on hover (falls back to the primary image). */
   hoverImage?: string;
   badge?: ProductBadge;
@@ -37,6 +42,8 @@ export interface ProductSummary {
   availability?: ProductAvailability;
   /** One-line preview description for quick views / list layouts. */
   blurb?: string;
+  /** ISO timestamp. Used for newest-first sections; omitted on legacy fixtures. */
+  publishedAt?: string;
 }
 
 export interface Testimonial {

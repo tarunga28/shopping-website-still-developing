@@ -1,28 +1,35 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { IBM_Plex_Mono, Space_Grotesk, Syne } from "next/font/google";
+import localFont from "next/font/local";
 import { Providers } from "@/components/providers";
 import { ThemeProvider, THEME_SCRIPT } from "@/components/theme/theme-provider";
 import { siteConfig } from "@/config/site";
 import { absoluteUrl } from "@/lib/seo";
 import "./globals.css";
 
-/* Brand type system — self-hosted via next/font (no layout shift) */
-const syne = Syne({
-  subsets: ["latin"],
-  weight: ["700", "800"],
+/* Brand type, vendored so production builds do not call Google Fonts. */
+const syne = localFont({
+  src: [
+    { path: "../fonts/syne-latin-700-normal.woff2", weight: "700", style: "normal" },
+    { path: "../fonts/syne-latin-800-normal.woff2", weight: "800", style: "normal" },
+  ],
   variable: "--font-syne",
   display: "swap",
 });
-const grotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const grotesk = localFont({
+  src: [
+    { path: "../fonts/space-grotesk-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/space-grotesk-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "../fonts/space-grotesk-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-grotesk",
   display: "swap",
 });
-const plex = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const plex = localFont({
+  src: [
+    { path: "../fonts/ibm-plex-mono-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/ibm-plex-mono-latin-500-normal.woff2", weight: "500", style: "normal" },
+  ],
   variable: "--font-plex",
   display: "swap",
 });

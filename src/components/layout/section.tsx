@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { Container } from "@/components/ui/container";
 import { cn } from "@/lib/utils";
 
@@ -8,13 +8,14 @@ export function Section({
   id,
   className,
   children,
-}: {
+  ...props
+}: HTMLAttributes<HTMLElement> & {
   id?: string;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <section id={id} className={cn("scroll-mt-24 py-16 md:py-24", className)}>
+    <section id={id} className={cn("scroll-mt-24 py-16 md:py-24", className)} {...props}>
       <Container>{children}</Container>
     </section>
   );

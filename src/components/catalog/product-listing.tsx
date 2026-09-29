@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { productPath } from "@/lib/storefront-paths";
 import { cn } from "@/lib/utils";
 import type { ProductSummary } from "@/types";
 
@@ -64,7 +65,13 @@ export interface ProductListingProps {
  * Sorting works on the provided data; filtering activates with the
  * catalog database milestone.
  */
-export function ProductListing({ products, title = "All products", loading = false }: ProductListingProps) {
+export function ProductListing({
+  products,
+  title = "All products",
+  loading = false,
+  savedIds = [],
+  categories = [],
+}: ProductListingProps & { savedIds?: string[]; categories?: { slug: string; name: string }[] }) {
   const [sort, setSort] = useState<SortKey>("featured");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [page] = useState(1);
@@ -83,6 +90,7 @@ export function ProductListing({ products, title = "All products", loading = fal
       <div className="flex flex-wrap items-center justify-between gap-3 border-y-[1.5px] border-ink py-3">
         <div className="flex items-center gap-3">
           <FilterDrawer
+            categories={categories}
             trigger={
               <Button variant="outline" size="sm">
                 <SlidersHorizontal className="size-3.5" aria-hidden />
@@ -146,14 +154,20 @@ export function ProductListing({ products, title = "All products", loading = fal
           )}
         >
           {sorted.map((product, index) => (
-            <ProductCard key={product.id} product={product} layout={view} priority={index < 4} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              href={productPath(product.slug)}
+              layout={view}
+              saved={savedIds.includes(product.id)}
+            />
           ))}
         </div>
       )}
 
       {/* Pagination structure (single preview page today; real paging
           lands with the catalog database) */}
-      <Pagination aria-label="Product pages" className="pt-4">
+      {totalPages > 1 ? <Pagination aria-label="Product pages" className="pt-4">
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious href="#" aria-disabled={page === 1} className={page === 1 ? "pointer-events-none opacity-40" : undefined} />
@@ -169,7 +183,7 @@ export function ProductListing({ products, title = "All products", loading = fal
             <PaginationNext href="#" aria-disabled={page === totalPages} className={page === totalPages ? "pointer-events-none opacity-40" : undefined} />
           </PaginationItem>
         </PaginationContent>
-      </Pagination>
+      </Pagination> : null}
     </div>
   );
 }

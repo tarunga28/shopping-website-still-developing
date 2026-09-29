@@ -1,7 +1,7 @@
 "use client";
 
 import { Home, MapPin, Pencil, Phone, Plus, Star, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AddressForm } from "@/components/account/address-form";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +24,15 @@ import type { Address } from "@/db/schema";
 export function AddressBook({ initialAddresses }: { initialAddresses: Address[] }) {
   const router = useRouter();
   const [addresses, setAddresses] = useState(initialAddresses);
+  const [syncedAddresses, setSyncedAddresses] = useState(initialAddresses);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Address | null>(null);
 
   // Server refetches deliver fresh rows via props after router.refresh().
-  useEffect(() => {
+  if (syncedAddresses !== initialAddresses) {
+    setSyncedAddresses(initialAddresses);
     setAddresses(initialAddresses);
-  }, [initialAddresses]);
+  }
 
   async function handleDelete(id: string) {
     const result = await deleteAddressAction(id);

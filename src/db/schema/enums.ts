@@ -80,6 +80,15 @@ export const imageTypeEnum = pgEnum("image_type", [
   "BANNER",
 ]);
 
+export const imageRoleEnum = pgEnum("image_role", [
+  "PRIMARY",
+  "GALLERY",
+  "HOVER",
+  "THUMBNAIL",
+  "MOBILE",
+  "SOCIAL",
+]);
+
 /* ── Commerce ─────────────────────────────────────────────────────────── */
 export const cartStatusEnum = pgEnum("cart_status", [
   "ACTIVE",

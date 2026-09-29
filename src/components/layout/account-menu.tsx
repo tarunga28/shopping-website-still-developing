@@ -39,6 +39,7 @@ export function AccountMenu({ user }: { user: SessionHint }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`Account menu for ${user.name}`}
+        data-track="ACCOUNT_OPENED"
         className={cn(
           "flex size-10 items-center justify-center rounded-pill border-[1.5px] border-ink bg-flame font-display text-xs font-extrabold text-on-accent",
           "transition-all hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame",

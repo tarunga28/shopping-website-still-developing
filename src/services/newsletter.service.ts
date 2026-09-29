@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { newsletterSubscribers } from "@/db/schema";
 import { logger } from "@/lib/logger";
 import { writeAudit } from "@/services/audit.service";
+import { syncNewsletterList, type NewsletterListSync } from "@/services/newsletter-list";
 
 /**
  * Newsletter service — stores signups with dedupe + audit trail.
@@ -12,7 +13,11 @@ export interface RequestContext {
   userAgent?: string;
 }
 
-export type SubscribeResult = { status: "subscribed" | "already_subscribed" };
+export type SubscribeResult = {
+  status: "subscribed" | "already_subscribed";
+  /** External ESP sync. `synced: false` means we only stored the address ourselves. */
+  listSync: NewsletterListSync;
+};
 
 export async function subscribeToNewsletter(
   email: string,
@@ -35,7 +40,7 @@ export async function subscribeToNewsletter(
       ip: context.ip,
       userAgent: context.userAgent,
     });
-    return { status: "already_subscribed" };
+    return { status: "already_subscribed", listSync: { synced: false, provider: "unconfigured" } };
   }
 
   await writeAudit({
@@ -47,6 +52,7 @@ export async function subscribeToNewsletter(
     userAgent: context.userAgent,
   });
 
-  logger.info("Newsletter signup", { source, id: inserted[0].id });
-  return { status: "subscribed" };
+  const listSync = await syncNewsletterList({ email: normalizedEmail, source });
+  logger.info("Newsletter signup", { source, id: inserted[0].id, listProvider: listSync.provider, synced: listSync.synced });
+  return { status: "subscribed", listSync };
 }

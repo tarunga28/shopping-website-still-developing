@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import {
   BarChart3,
   FolderOpen,
+  Layers,
   Paintbrush,
   Package,
   Percent,
@@ -18,14 +20,15 @@ import {
  * milestone; items are disabled placeholders until routes exist.
  */
 
-const adminNav: { section: string; items: { label: string; icon: LucideIcon }[] }[] = [
+const adminNav: { section: string; items: { label: string; icon: LucideIcon; href?: string }[] }[] = [
   {
     section: "Operations",
     items: [
       { label: "Orders", icon: ShoppingCart },
-      { label: "Products", icon: Package },
+      { label: "Products", href: "/admin/products", icon: Package },
+      { label: "Categories", href: "/admin/categories", icon: FolderOpen },
+      { label: "Collections", href: "/admin/collections", icon: Layers },
       { label: "Designs", icon: Paintbrush },
-      { label: "Categories", icon: FolderOpen },
     ],
   },
   {
@@ -59,16 +62,23 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 {group.section}
               </p>
               <ul className="mt-2 space-y-0.5">
-                {group.items.map(({ label, icon: Icon }) => (
+                {group.items.map(({ label, icon: Icon, href }) => (
                   <li key={label}>
-                    <span
-                      aria-disabled="true"
-                      title="Arrives with the admin milestone"
-                      className="flex cursor-not-allowed items-center gap-2.5 rounded-card px-3 py-2 text-sm text-paper/50"
-                    >
-                      <Icon className="size-4" aria-hidden />
-                      {label}
-                    </span>
+                    {href ? (
+                      <Link href={href} className="flex items-center gap-2.5 rounded-card px-3 py-2 text-sm text-paper hover:bg-paper/10">
+                        <Icon className="size-4" aria-hidden />
+                        {label}
+                      </Link>
+                    ) : (
+                      <span
+                        aria-disabled="true"
+                        title="Not part of catalog management"
+                        className="flex cursor-not-allowed items-center gap-2.5 rounded-card px-3 py-2 text-sm text-paper/50"
+                      >
+                        <Icon className="size-4" aria-hidden />
+                        {label}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

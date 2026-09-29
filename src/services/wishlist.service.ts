@@ -133,6 +133,22 @@ export async function listWishlist(userId: string): Promise<WishlistEntry[]> {
   }));
 }
 
+/** Read-only ids. Does not create a wishlist row for visitors who have never saved. */
+export async function listWishlistProductIds(userId: string): Promise<string[]> {
+  const [wishlist] = await db
+    .select({ id: wishlists.id })
+    .from(wishlists)
+    .where(eq(wishlists.userId, userId))
+    .limit(1);
+  if (!wishlist) return [];
+
+  const rows = await db
+    .select({ productId: wishlistItems.productId })
+    .from(wishlistItems)
+    .where(eq(wishlistItems.wishlistId, wishlist.id));
+  return rows.map((row) => row.productId);
+}
+
 export async function wishlistCount(userId: string): Promise<number> {
   const wishlistId = await ensureWishlist(userId);
   const [row] = await db
