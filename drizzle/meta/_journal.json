@@ -50,6 +50,13 @@
       "when": 1790959200000,
       "tag": "0006_product_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791045600000,
+      "tag": "0007_search_discovery",
+      "breakpoints": true
     }
   ]
 }

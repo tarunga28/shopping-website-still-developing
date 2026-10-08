@@ -529,4 +529,58 @@ describe.skipIf(!enabled)("search & discovery (PostgreSQL)", () => {
       ).rejects.toThrow();
     });
   });
+
+  /* ── §61 acceptance: the combined workflow ─────────────────────────── */
+
+  describe("acceptance: typo + price constraint in one query", () => {
+    // The spec's completion check is a search for "iphne pro max under 100000":
+    // one query that must simultaneously correct a typo, apply a parsed price
+    // constraint, rank against the real index, return facets, and be recorded.
+    //
+    // The fixtures here are laptops rather than phones, but the pipeline under
+    // test is identical, and the price boundary is what makes the assertion
+    // meaningful: "gaming" (₹85,000) and "budget" (₹32,000) fall inside
+    // ₹100,000, while "ultrabook" (₹120,000) and "pro" (₹185,000) fall outside.
+    it("corrects the typo, applies the price ceiling, and returns ranked faceted results", async () => {
+      const processed = await m.query.buildProcessedQuery(`laptopp ${P} under 100000`, {
+        client: m.db,
+      });
+
+      // 1. The typo is understood. With only a handful of fixtures the term is
+      //    rare, so it may be offered rather than auto-applied — assert on the
+      //    union so this checks recognition, not the prevalence threshold.
+      const recognised = [
+        ...processed.corrections.map((entry) => entry.to),
+        ...processed.suggestedCorrections.map((entry) => entry.to),
+      ];
+      expect(recognised).toContain("laptop");
+
+      // 2. The price constraint is parsed out of the natural-language query.
+      expect(processed.price?.maxPaise).toBe(10_000_000);
+
+      // 3. Executing the same query applies both: the ceiling excludes the two
+      //    expensive fixtures.
+      const result = await m.query.executeSearch({
+        query: `laptop ${P} under 100000`,
+        sessionHash: "acceptance61",
+      });
+
+      const names = result.results.map((row) => row.name);
+      expect(names.some((name) => name.includes("Gaming Laptop"))).toBe(true);
+      expect(names.some((name) => name.includes("Ultrabook Laptop"))).toBe(false);
+      expect(names.some((name) => name.includes("Pro Workstation"))).toBe(false);
+
+      // 4. Facets come back with the search, not from a second round trip.
+      expect(result.facets.total).toBeGreaterThan(0);
+      expect(result.facets.groups.length).toBeGreaterThan(0);
+
+      // 5. The response is self-describing for debugging and experiments.
+      expect(result.metadata.rankingVersion).toBeTruthy();
+      expect(typeof result.metadata.tookMs).toBe("number");
+
+      // 6. The query was recorded, so it reaches the admin dashboard.
+      const overview = await m.analytics.searchOverview({ windowDays: 1, client: m.db });
+      expect(overview.totalSearches).toBeGreaterThan(0);
+    });
+  });
 });

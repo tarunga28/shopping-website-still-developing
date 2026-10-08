@@ -63,6 +63,11 @@ log with idempotency keys. `npm run db:verify` asserts the contract
 See `docs/ARCHITECTURE.md` for the module map, conventions and the
 milestone seam points for auth, catalog, cart, payments and POD.
 
+Further docs: `docs/SEARCH.md` (search, discovery and relevance),
+`docs/MANUAL-TESTING.md` (hands-on checklist for the catalog and search
+engines), `docs/DESIGN_SYSTEM.md`, and
+`services/catalog-service/README.md` (the Python intelligence service).
+
 ## Catalog browsing (Shop, Category, Collection)
 
 `/shop`, `/category/[slug]` and `/collection/[slug]` are server-rendered from
