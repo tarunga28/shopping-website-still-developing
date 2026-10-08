@@ -19,10 +19,15 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/cache", () => ({
-  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+const { revalidateTag, revalidatePath } = vi.hoisted(() => ({
   revalidateTag: vi.fn(),
   revalidatePath: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+  revalidateTag,
+  revalidatePath,
 }));
 
 /**
@@ -446,6 +451,32 @@ describe.skipIf(!enabled)("catalog REST API (PostgreSQL)", () => {
       .from(inventoryLedger);
     const opening = rows.filter((row) => row.operation === "STOCK_IN" && Number(row.changed) === 5);
     expect(opening.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The storefront listing derives availability and orderable counts from
+   * variant rows and is cached under the `catalog` tag. A variant created
+   * through this route changes what a shopper sees, so the tag must be expired
+   * or the storefront keeps serving the old availability until the TTL lapses.
+   */
+  it("POST /api/products/:id/variants expires the public catalog cache", async () => {
+    const product = await createProduct(`${P} Cache Variant`);
+    session.user = { id: ids.actor!, role: "ADMIN" };
+    revalidateTag.mockClear();
+
+    const created = await m.variantsRoute.POST(
+      new Request("http://test.local/x", json({
+        sku: `${P}-CACHE`.toUpperCase().replace(/[^A-Z0-9-]/g, "-"),
+        name: "Cached",
+        price: 100000,
+        stockQuantity: 3,
+        attributes: { size: "M" },
+      })),
+      ctx(product.id),
+    );
+    expect(created.status, await created.clone().text()).toBe(200);
+
+    expect(revalidateTag).toHaveBeenCalledWith("catalog", { expire: 0 });
   });
 
   it("POST /api/products/:id/variants rejects a malformed SKU", async () => {

@@ -28,6 +28,7 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
 import { assertCompareAt, parseInrToPaise } from "@/lib/catalog-rules";
 import { emitCatalogEvents } from "@/services/catalog/events.service";
 import { adjustInventory } from "@/services/catalog/inventory.service";
+import { invalidateCatalogCache } from "@/lib/catalog/cache";
 
 /**
  * Variant engine.
@@ -217,8 +218,9 @@ export async function createVariant(
   actor: VariantActor,
   productId: string,
   input: CreateVariantInput,
+  options: { invalidateCache?: boolean } = {},
 ): Promise<{ id: string; sku: string }> {
-  return withTransaction(async (tx) => {
+  const created = await withTransaction(async (tx) => {
     const [product] = await tx
       .select({ id: products.id, lowStockThreshold: products.lowStockThreshold })
       .from(products)
@@ -305,6 +307,18 @@ export async function createVariant(
 
     return { id: row.id, sku };
   });
+
+  // The storefront listing derives availability and orderable counts from
+  // variant rows and is cached under the `catalog` tag, so a new variant has to
+  // expire it — otherwise the listing keeps serving the old counts until the
+  // TTL lapses. Invalidated after the commit: expiring before would let a
+  // concurrent read repopulate the cache from pre-commit data.
+  //
+  // Callers that batch (see `generateProductVariants`) suppress this and expire
+  // once for the whole batch.
+  if (options.invalidateCache !== false) invalidateCatalogCache();
+
+  return created;
 }
 
 function normalizeAssignments(assignments: readonly AttributeAssignment[]): AttributeAssignment[] {
@@ -442,12 +456,18 @@ export async function generateProductVariants(
       matchedExisting += 1;
       continue;
     }
-    const result = await createVariant(actor, productId, {
-      sku: blueprint.sku ?? derivedSku(input.skuPrefix, blueprint.assignments),
-      name: blueprint.name,
-      price: blueprint.pricePaise ?? pricePaise ?? 0,
-      assignments: blueprint.assignments,
-    });
+    const result = await createVariant(
+      actor,
+      productId,
+      {
+        sku: blueprint.sku ?? derivedSku(input.skuPrefix, blueprint.assignments),
+        name: blueprint.name,
+        price: blueprint.pricePaise ?? pricePaise ?? 0,
+        assignments: blueprint.assignments,
+      },
+      // Expired once for the whole batch below, not once per variant.
+      { invalidateCache: false },
+    );
     created.push(result);
   }
 
@@ -456,10 +476,12 @@ export async function generateProductVariants(
     for (const variant of existing) {
       if (wantedHashes.has(variantComboHash(variant.attributes))) continue;
       if (!variant.isActive) continue;
-      await retireVariant(actor, productId, variant.id);
+      await retireVariant(actor, productId, variant.id, { invalidateCache: false });
       retired.push(variant.id);
     }
   }
+
+  if (created.length > 0 || retired.length > 0) invalidateCatalogCache();
 
   return { created, matchedExisting, retired, errors: [] };
 }
@@ -475,6 +497,7 @@ export async function retireVariant(
   actor: VariantActor,
   productId: string,
   variantId: string,
+  options: { invalidateCache?: boolean } = {},
 ): Promise<void> {
   await withTransaction(async (tx) => {
     const [variant] = await tx
@@ -498,6 +521,10 @@ export async function retireVariant(
       },
     ]);
   });
+
+  // Retiring sets the variant OUT_OF_STOCK and inactive, which changes the
+  // listing's orderable count — same expiry requirement as creation.
+  if (options.invalidateCache !== false) invalidateCatalogCache();
 }
 
 /* ── Attribute definitions (admin) ───────────────────────────────────── */
