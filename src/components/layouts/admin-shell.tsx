@@ -11,6 +11,7 @@ import {
   Percent,
   Search,
   Settings,
+  Sparkles,
   ShoppingCart,
   Tags,
   Users,
@@ -40,6 +41,7 @@ const adminNav: { section: string; items: { label: string; icon: LucideIcon; hre
     section: "Growth",
     items: [
       { label: "Search", href: "/admin/search", icon: Search },
+      { label: "Recommendations", href: "/admin/recommendations", icon: Sparkles },
       { label: "Customers", icon: Users },
       { label: "Coupons", icon: Percent },
       { label: "Analytics", icon: BarChart3 },
