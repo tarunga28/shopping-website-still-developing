@@ -496,11 +496,19 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def _candidate_paths() -> list[Path]:
-    configured = os.environ.get("CPPSEARCH_LIBRARY")
+def _candidate_paths(configured: str = "") -> list[Path]:
+    """Paths to try, most specific first.
+
+    `configured` comes from settings (`CATALOG_SERVICE_CPPSEARCH_LIBRARY`). The
+    unprefixed `CPPSEARCH_LIBRARY` is still honoured because the repository-root
+    `.env.example` documents it for the Next.js process; this function used to
+    read only that one, which silently ignored the service's own prefixed
+    setting.
+    """
     paths: list[Path] = []
-    if configured:
-        paths.append(Path(configured))
+    for value in (configured, os.environ.get("CPPSEARCH_LIBRARY", "")):
+        if value:
+            paths.append(Path(value))
     root = _repo_root()
     paths.extend(root / relative for relative in _CANDIDATE_PATHS)
     # Fall back to the loader's own search path.
@@ -508,15 +516,19 @@ def _candidate_paths() -> list[Path]:
     return paths
 
 
-def load_engine() -> RankingEngine:
+def load_engine(configured_library: str = "") -> RankingEngine:
     """Load the native library and return a ready engine.
+
+    `configured_library` is the operator-supplied path from settings. Callers
+    that have settings should pass it; passing nothing still works and falls
+    back to the environment and the usual in-repo locations.
 
     Raises `RankingEngineUnavailable` naming every path that was tried, so a
     deployment problem is diagnosable from one log line rather than requiring
     someone to read this function.
     """
     attempted: list[str] = []
-    for candidate in _candidate_paths():
+    for candidate in _candidate_paths(configured_library):
         attempted.append(str(candidate))
         try:
             library = ctypes.CDLL(str(candidate))

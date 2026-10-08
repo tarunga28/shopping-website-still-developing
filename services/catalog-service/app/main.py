@@ -91,7 +91,7 @@ def _build_intelligence(settings: Settings) -> CatalogIntelligence:
 
     engine = None
     try:
-        engine = load_engine()
+        engine = load_engine(settings.cppsearch_library)
         logger.info("ranking engine loaded (version %s)", engine.version)
     except RankingEngineUnavailable as exc:
         message = (

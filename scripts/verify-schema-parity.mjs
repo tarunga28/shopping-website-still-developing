@@ -162,7 +162,12 @@ async function main() {
     };
 
     const extensions = "CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE EXTENSION IF NOT EXISTS unaccent;";
+    // Both databases need the extensions, not just `current`. Once the Part 11/12
+    // schema files were committed, the baseline generated from ${ref} itself
+    // declares GIN trigram indexes, so applying it without pg_trgm fails on
+    // "operator class gin_trgm_ops does not exist".
     await run(current, extensions, "extensions (current)");
+    await run(migrated, extensions, "extensions (migrated)");
     await run(current, currentSql, "current Drizzle schema");
     await run(migrated, baseSql, `${ref} baseline schema`);
     for (const migration of MIGRATIONS) {
@@ -178,7 +183,9 @@ async function main() {
     const onlyMigrated = [...migratedFacts].filter((f) => !currentFacts.has(f) && !KNOWN_MIGRATION_ONLY(f));
 
     if (onlyCurrent.length > 0 || onlyMigrated.length > 0) {
-      process.stderr.write(`\nDrift between drizzle/0006_product_intelligence.sql and src/db/schema:\n`);
+      process.stderr.write(
+        `\nDrift between ${MIGRATIONS.map((m) => basename(m)).join(" + ")} and src/db/schema:\n`,
+      );
       for (const fact of onlyCurrent.sort()) process.stderr.write(`  missing from migration : ${fact}\n`);
       for (const fact of onlyMigrated.sort()) process.stderr.write(`  extra in migration     : ${fact}\n`);
       fail(`${onlyCurrent.length + onlyMigrated.length} difference(s)`);
