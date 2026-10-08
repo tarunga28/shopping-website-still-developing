@@ -6,6 +6,11 @@ import { ProductInfoSections } from "@/components/product/product-info";
 import { ProductLoadError } from "@/components/product/product-load-error";
 import { ProductReviews } from "@/components/product/product-reviews";
 import { RelatedProducts } from "@/components/product/related-products";
+import {
+  CrossSellRail,
+  FrequentlyBoughtTogetherRail,
+  SimilarProductsRail,
+} from "@/components/recommendations/recommendation-rail";
 import { RelatedSkeleton, SectionSkeleton } from "@/components/product/product-skeleton";
 import { ProductViewTracker } from "@/components/product/product-view-tracker";
 import { JsonLd } from "@/components/storefront/json-ld";
@@ -146,6 +151,20 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <Suspense fallback={<RelatedSkeleton />}>
             <RelatedProducts productId={product.id} />
           </Suspense>
+
+          {/* Part 13 rails. Each fetches its own candidates and defers the
+              request until it is near the viewport, so adding them costs the
+              initial paint nothing. A rail with no candidates renders nothing
+              rather than an empty heading — see RecommendationRail.
+
+              These sit *alongside* the structural RelatedProducts above rather
+              than replacing it: that component ranks by shared collection and
+              tags, these by precomputed similarity and co-purchase. When the
+              offline job has not run yet, the structural one is the only rail
+              with anything to say. */}
+          <SimilarProductsRail productId={product.id} limit={8} />
+          <FrequentlyBoughtTogetherRail productId={product.id} limit={6} />
+          <CrossSellRail productId={product.id} limit={6} />
         </div>
       </Container>
     </>

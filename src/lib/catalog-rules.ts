@@ -277,6 +277,38 @@ export function assertBulkConfirmation(action: Parameters<typeof bulkPhrase>[0],
   }
 }
 
+/** Operations offered by the bulk inventory screen. */
+export const BULK_INVENTORY_OPERATIONS = ["STOCK_IN", "MANUAL_ADJUSTMENT", "DAMAGE"] as const;
+export type BulkInventoryOperation = (typeof BULK_INVENTORY_OPERATIONS)[number];
+
+export const MAX_BULK_INVENTORY = MAX_BULK;
+
+/**
+ * The phrase an editor must type to apply one stock movement to many variants.
+ *
+ * Stock is the one bulk operation that can silently make the catalog wrong —
+ * a misplaced digit here is 100 variants out by a factor of ten, and the error
+ * surfaces later as oversold orders. So it gets the same typed-confirmation gate
+ * as the destructive catalog bulk actions, and the phrase names the operation
+ * so the editor cannot confirm one movement while intending another.
+ */
+export function bulkInventoryPhrase(operation: BulkInventoryOperation, count: number): string {
+  return `${operation} ${count}`;
+}
+
+export function assertBulkInventoryConfirmation(
+  operation: BulkInventoryOperation,
+  count: number,
+  phrase: string,
+): void {
+  if (!Number.isInteger(count) || count < 1 || count > MAX_BULK_INVENTORY) {
+    throw new Error(`Bulk stock changes are limited to ${MAX_BULK_INVENTORY} variants and need an explicit confirmation.`);
+  }
+  if (phrase !== bulkInventoryPhrase(operation, count)) {
+    throw new Error("Confirmation did not match. No stock was changed.");
+  }
+}
+
 export interface PublishInput {
   name: string;
   description: string | null;

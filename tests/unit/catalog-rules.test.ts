@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   assertCompareAt,
   assertVariantForType,
+  assertBulkInventoryConfirmation,
+  bulkInventoryPhrase,
   bulkPhrase,
   canAcceptPurchase,
   canArchiveCategory,
@@ -160,6 +162,30 @@ describe("publishing and categories", () => {
 
   it("requires an exact bulk confirmation", () => {
     expect(bulkPhrase("ARCHIVE", 3)).toBe("ARCHIVE 3");
+  });
+
+  // A bulk stock change is the one bulk action that can silently corrupt the
+  // catalog, so it gets the same typed gate and the phrase names the operation.
+  it("names the operation in the bulk inventory confirmation phrase", () => {
+    expect(bulkInventoryPhrase("STOCK_IN", 12)).toBe("STOCK_IN 12");
+    expect(bulkInventoryPhrase("DAMAGE", 1)).toBe("DAMAGE 1");
+    expect(bulkInventoryPhrase("STOCK_IN", 12)).not.toBe(bulkInventoryPhrase("DAMAGE", 12));
+  });
+
+  it("accepts a matching bulk inventory confirmation and rejects a mismatch", () => {
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", 12, "STOCK_IN 12")).not.toThrow();
+    // Confirming a different operation must not authorise this one.
+    expect(() => assertBulkInventoryConfirmation("DAMAGE", 12, "STOCK_IN 12")).toThrow(/did not match/);
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", 12, "STOCK_IN 13")).toThrow(/did not match/);
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", 12, "")).toThrow(/did not match/);
+  });
+
+  it("caps bulk inventory batches and rejects an empty or fractional count", () => {
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", 100, "STOCK_IN 100")).not.toThrow();
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", 101, "STOCK_IN 101")).toThrow(/limited to 100/);
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", 0, "STOCK_IN 0")).toThrow(/limited to 100/);
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", -5, "STOCK_IN -5")).toThrow(/limited to 100/);
+    expect(() => assertBulkInventoryConfirmation("STOCK_IN", 2.5, "STOCK_IN 2.5")).toThrow(/limited to 100/);
   });
 });
 

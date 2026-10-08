@@ -1,4 +1,4 @@
-import { integer, timestamp, uuid, type PgTextBuilderInitial } from "drizzle-orm/pg-core";
+import { customType, integer, timestamp, uuid, type PgTextBuilderInitial } from "drizzle-orm/pg-core";
 
 /**
  * Shared column helpers so every table gets identical, well-typed columns.
@@ -8,6 +8,17 @@ import { integer, timestamp, uuid, type PgTextBuilderInitial } from "drizzle-orm
  *   CHECK(amount >= 0) constraint. Integers are exact — no float drift —
  *   and match the `formatPrice` helpers used across the app.
  */
+
+/**
+ * PostgreSQL `tsvector`. Drizzle has no built-in type for it, and the column is
+ * always written by a generated expression or `to_tsvector(...)` — never by
+ * application string interpolation — so a plain opaque type is correct here.
+ */
+export const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
 
 export const idColumn = {
   id: uuid("id").defaultRandom().primaryKey(),

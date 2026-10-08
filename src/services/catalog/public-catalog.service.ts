@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import {
   categories,
@@ -364,6 +365,55 @@ export async function queryPublicProducts(input: CatalogQueryInput): Promise<Cat
     pagination: buildPaginationMeta({ page, pageSize, total: Number(countRows[0]?.total ?? 0), count: dtos.length }),
     sort: filters.sort,
   };
+}
+
+/**
+ * One publicly eligible product, by id.
+ *
+ * Returns the same projection as the listing rather than the raw row, so an API
+ * that fetches a single product cannot leak cost price, supplier references,
+ * admin notes or the search vector. Reuses the listing hydration on purpose:
+ * a second hydration path is how the card and the detail page drift apart.
+ *
+ * Returns null when the product does not exist OR is not publicly visible —
+ * callers cannot distinguish the two, which is deliberate: a 404 that reveals
+ * "this exists but is hidden" leaks unpublished catalog state.
+ */
+export async function getProductByIdPublic(id: string): Promise<PublicProductDTO | null> {
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return null;
+
+  const rows = await db
+    .select(listColumns)
+    .from(products)
+    .where(and(eq(products.id, parsed.data), publicProductCondition()))
+    .limit(1);
+
+  if (rows.length === 0) return null;
+  const [product] = await hydratePublicProducts(rows);
+  return product ?? null;
+}
+
+/**
+ * One publicly eligible product, by slug.
+ *
+ * Same contract as `getProductByIdPublic`. Kept separate rather than overloaded
+ * because the callers differ: the slug form backs SEO URLs and needs to return
+ * null (not throw) so the route can 404 cleanly.
+ */
+export async function getProductBySlugPublic(slug: string): Promise<PublicProductDTO | null> {
+  const clean = slug.trim().toLowerCase();
+  if (!clean || clean.length > 200) return null;
+
+  const rows = await db
+    .select(listColumns)
+    .from(products)
+    .where(and(eq(products.slug, clean), publicProductCondition()))
+    .limit(1);
+
+  if (rows.length === 0) return null;
+  const [product] = await hydratePublicProducts(rows);
+  return product ?? null;
 }
 
 /** Number of publicly eligible products. */

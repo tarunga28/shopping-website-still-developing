@@ -86,6 +86,62 @@ clay/ink/smoke/flame), focus rings via `outline-flame`.
 - Errors: customer-safe messages via `AppError`; internals logged
   structured, never exposed.
 
+## Catalog REST API (Part 11)
+
+The catalog is reachable two ways: the pre-existing `/api/catalog/*` and
+`/api/admin/catalog/*` routes (used by the storefront and the admin server
+actions), and the REST surface below. They share the same services, so there is
+one implementation of every rule and two shapes of URL.
+
+| Method & path | Auth | Purpose |
+| --- | --- | --- |
+| `GET /api/products` | public | Paginated listing, `PublicProductDTO` only |
+| `POST /api/products` | editor | Create (lands as `DRAFT`) |
+| `GET /api/products/:id` | public¹ | Public projection, or the admin shape for an editor |
+| `PUT /api/products/:id` | editor | Full update |
+| `DELETE /api/products/:id` | editor | **Archives**; never hard-deletes |
+| `GET /api/products/slug/:slug` | public | Slug lookup for SEO URLs |
+| `GET /api/products/:id/variants` | public¹ | Variants; cost price stripped publicly |
+| `POST /api/products/:id/variants` | editor | Create variant + opening `STOCK_IN` ledger row |
+| `GET /api/products/:id/inventory` | public¹ | Stock balances; the ledger is editor-only |
+| `POST /api/products/:id/inventory` | editor | One ledger movement, transactional |
+| `GET /api/categories` | public | Category tree |
+| `POST /api/categories` | editor | Create; `path` is server-derived and returned |
+| `PUT /api/categories/:id` | editor | Update, recomputing the subtree paths |
+| `DELETE /api/categories/:id` | editor | Archive; `?reassignTo=` moves live products first |
+| `GET /api/brands` | public | Active brands; `includeInactive` honoured for editors |
+| `POST /api/brands` | editor | Create |
+
+¹ Reads on a shared path branch on the **session role**, never on a request
+parameter. A client cannot ask for the admin shape; there is no flag to send.
+
+### Two invariants worth knowing before changing these
+
+**Public responses are explicit allow-lists.** `getProductByIdPublic`,
+`getProductBySlugPublic` and the variants route build a new object from named
+fields rather than deleting keys from a row. A column added to `products` or
+`product_variants` therefore cannot reach a public response by default — it has
+to be added on purpose. Cost price, admin notes, tax rate, the search vector and
+the inventory ledger are the fields this protects.
+
+**`DELETE` archives.** Products are referenced by orders, reviews, carts and
+wishlists, and categories by their own descendants; a hard delete would either
+fail on a foreign key or orphan real history. Archiving keeps every reference
+resolvable and takes the item off the storefront, which is what "delete" means
+operationally. `tests/integration/catalog-rest-api.test.ts` asserts the row
+survives with `status = 'ARCHIVED'`.
+
+### Errors
+
+Routes use the `{ ok, data | error }` envelope from `lib/api-response.ts`
+(`apiOk` / `apiFail`) and are wrapped in `withErrorHandling`. Note this is a
+different envelope from the public catalog's `catalogApiResponse` — do not mix
+them. Statuses: `401` unauthenticated, `403` authenticated but not an editor,
+`404` missing or not publicly visible, `422` validation, `429` rate-limited.
+
+A missing product and a hidden product return the **same** 404 body. Distinguishing
+them would let anyone enumerate unpublished slugs.
+
 ## Milestone seams (where future parts plug in)
 
 | Part            | Plug point                                              |

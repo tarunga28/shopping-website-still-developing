@@ -30,12 +30,21 @@ import {
   uploadProductImage,
 } from "@/services/catalog-admin.service";
 import {
+  brandWriteSchema,
+  bulkInventorySchema,
   bulkSchema,
   categoryWriteSchema,
   collectionWriteSchema,
+  inventoryAdjustSchema,
   productWriteSchema,
   variantWriteSchema,
 } from "@/validations/catalog";
+import { createBrand, deactivateBrand, updateBrand } from "@/services/catalog/brand.service";
+import { adjustInventory } from "@/services/catalog/inventory.service";
+import {
+  assertBulkInventoryConfirmation,
+  type BulkInventoryOperation,
+} from "@/lib/catalog-rules";
 
 export type CatalogActionResult = { ok: true; message?: string; id?: string } | { ok: false; error: string };
 
@@ -382,4 +391,147 @@ export async function createColorAction(_prev: CatalogActionResult | null, form:
     if (error instanceof ValidationError) return fail(error);
     return fail(error);
   }
+}
+
+/* ── Brands ─────────────────────────────────────────────────────────── */
+
+export async function saveBrandAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
+  const id = text(form, "id");
+  const parsed = brandWriteSchema.safeParse({
+    name: text(form, "name"),
+    slug: text(form, "slug"),
+    description: text(form, "description"),
+    logoUrl: text(form, "logoUrl"),
+    bannerUrl: text(form, "bannerUrl"),
+    website: text(form, "website"),
+    seoTitle: text(form, "seoTitle"),
+    seoDescription: text(form, "seoDescription"),
+    displayOrder: Number(text(form, "displayOrder") || "0"),
+    isActive: form.get("isActive") === "on",
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the brand." };
+  try {
+    const user = await actor();
+    if (id) await updateBrand(id, parsed.data, { actorId: user.id });
+    else await createBrand(parsed.data, { actorId: user.id });
+    refresh(["/admin/brands", "/admin/products"]);
+    return { ok: true, message: id ? "Brand saved." : "Brand created." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Deactivate rather than delete: products keep their brand reference, so a
+ * mis-click does not orphan catalog history.
+ */
+export async function deactivateBrandAction(id: string): Promise<CatalogActionResult> {
+  try {
+    const user = await actor();
+    await deactivateBrand(id, { actorId: user.id });
+    refresh(["/admin/brands"]);
+    return { ok: true, message: "Brand deactivated." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/* ── Inventory ──────────────────────────────────────────────────────── */
+
+export async function adjustInventoryAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
+  // The schema deliberately has no productId: the REST route takes it from the
+  // URL path. A form action has no path segment, so it is read here and joined
+  // back on — one schema, two callers, no duplicated validation rules.
+  const productId = text(form, "productId");
+  const parsed = inventoryAdjustSchema.safeParse({
+    variantId: text(form, "variantId"),
+    operation: text(form, "operation"),
+    quantity: Number(text(form, "quantity") || "0"),
+    reason: text(form, "reason"),
+    referenceType: text(form, "referenceType"),
+    referenceId: text(form, "referenceId"),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the adjustment." };
+  if (!productId) return { ok: false, error: "Product is required." };
+  try {
+    const user = await actor();
+    await adjustInventory({ id: user.id }, { ...parsed.data, productId });
+    refresh(["/admin/inventory", "/admin/products"]);
+    return { ok: true, message: "Stock adjusted." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Apply one stock movement to many variants.
+ *
+ * Each variant is adjusted in its own transaction rather than all in one, so a
+ * variant that legitimately cannot take the movement — a sale larger than the
+ * balance, a variant retired between page load and submit — is skipped and
+ * reported instead of rolling back the whole batch. Partial success is the
+ * useful outcome here; the alternative is one bad row blocking a 100-variant
+ * restock.
+ *
+ * What must never happen is a silent skip, so the failures are returned to the
+ * editor with the reason attached.
+ */
+export async function bulkInventoryAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
+  const rawTargets = form.getAll("targets");
+  const targets: { productId: string; variantId: string }[] = [];
+  for (const entry of rawTargets) {
+    if (typeof entry !== "string") continue;
+    const [productId, variantId] = entry.split(":");
+    if (productId && variantId) targets.push({ productId, variantId });
+  }
+
+  const operation = text(form, "operation");
+  const parsed = bulkInventorySchema.safeParse({
+    operation,
+    quantity: Number(text(form, "quantity") || "0"),
+    targets,
+    reason: text(form, "reason"),
+    referenceType: text(form, "referenceType"),
+    referenceId: text(form, "referenceId"),
+    confirmation: text(form, "confirmation"),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the bulk action." };
+
+  try {
+    assertBulkInventoryConfirmation(
+      parsed.data.operation as BulkInventoryOperation,
+      parsed.data.targets.length,
+      parsed.data.confirmation,
+    );
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Confirmation did not match." };
+  }
+
+  const user = await actor();
+  const { targets: batch, ...movement } = parsed.data;
+
+  let applied = 0;
+  const failures: string[] = [];
+
+  for (const target of batch) {
+    try {
+      await adjustInventory({ id: user.id }, { ...movement, ...target });
+      applied += 1;
+    } catch (error) {
+      failures.push(error instanceof AppError ? error.message : "Unexpected error.");
+    }
+  }
+
+  refresh(["/admin/inventory", "/admin/products"]);
+
+  if (applied === 0) {
+    return { ok: false, error: `Nothing changed. ${failures[0] ?? "Every variant was skipped."}` };
+  }
+  if (failures.length > 0) {
+    return {
+      ok: true,
+      message: `${applied} variant${applied === 1 ? "" : "s"} updated. ${failures.length} skipped: ${failures[0]}`,
+    };
+  }
+  return { ok: true, message: `${applied} variant${applied === 1 ? "" : "s"} updated.` };
 }

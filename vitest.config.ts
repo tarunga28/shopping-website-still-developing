@@ -16,6 +16,16 @@ export default defineConfig({
     },
   },
   test: {
+    // `next-auth` ships ESM that imports `next/server` without the `.js`
+    // extension Node's loader requires. Left externalized, Node resolves it
+    // directly and the alias above never applies — so any module that reaches
+    // auth (the admin-guarded API routes) fails to import. Inlining it lets
+    // Vite apply the alias.
+    server: {
+      deps: {
+        inline: ["next-auth"],
+      },
+    },
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],

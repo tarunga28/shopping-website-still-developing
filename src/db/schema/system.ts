@@ -1,7 +1,8 @@
+import { sql } from "drizzle-orm";
 import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { analyticsEventTypeEnum } from "./enums";
+import { analyticsEventTypeEnum, recommendationTypeEnum } from "./enums";
 import { idColumn, timestampsNoUpdate } from "./helpers";
-import { products } from "./catalog";
+import { brands, categories, products, productVariants } from "./catalog";
 import { users } from "./users";
 
 /* ── Newsletter (pre-launch capture — live since Part 1) ──────────────── */
@@ -63,6 +64,20 @@ export const analyticsEvents = pgTable(
     productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
     /** Small structured context (query text, variant id, cart value). */
     context: jsonb("context").$type<Record<string, unknown>>(),
+    /* ── Part 13: the dimensions the recommender aggregates on ──────────────
+     * Promoted out of `context` into real columns. They were already being
+     * passed in the JSON blob, but an interest aggregation that groups by
+     * category needs an indexable column, not a jsonb path scan. */
+    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+    brandId: uuid("brand_id").references(() => brands.id, { onDelete: "set null" }),
+    /** The query behind a SEARCH or SEARCH_RESULT_CLICK event. */
+    searchQuery: text("search_query"),
+    /** Set when this behaviour followed a recommendation impression. */
+    recommendationType: recommendationTypeEnum("recommendation_type"),
+    recommendationRequestId: uuid("recommendation_request_id"),
+    /** Where in the app the event fired: pdp, cart, checkout, search, home. */
+    source: text("source"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
@@ -71,6 +86,10 @@ export const analyticsEvents = pgTable(
     index("analytics_events_type_created_idx").on(table.eventType, table.createdAt),
     index("analytics_events_product_idx").on(table.productId),
     index("analytics_events_created_at_idx").on(table.createdAt),
+    /* Interest aggregation reads "everything this subject did, newest first",
+     * so it needs an index leading with the subject rather than the type. */
+    index("analytics_events_user_created_idx").on(table.userId, sql`${table.createdAt} desc`),
+    index("analytics_events_session_created_idx").on(table.sessionId, sql`${table.createdAt} desc`),
   ],
 );
 
