@@ -195,13 +195,20 @@ export const userInterestSignals = pgTable(
     ...timestampsNoUpdate,
   },
   (table) => [
-    // Upsert target: one row per subject per dimension per key.
-    uniqueIndex("user_interest_signals_subject_key").on(
-      table.userId,
-      table.sessionHash,
-      table.dimension,
-      table.key,
-    ),
+    /* Upsert targets: one row per subject per dimension per key.
+     *
+     * Two PARTIAL indexes, not one composite over (userId, sessionHash, ...).
+     * Exactly one of the two subject columns is ever set, so a composite
+     * unique index always contains a NULL — and PostgreSQL treats NULLs as
+     * distinct, meaning the index would never collide and the upsert would
+     * silently insert a new row per event forever. Splitting by subject kind
+     * keeps every unique key fully populated. */
+    uniqueIndex("user_interest_signals_user_key")
+      .on(table.userId, table.dimension, table.key)
+      .where(sql`${table.userId} IS NOT NULL`),
+    uniqueIndex("user_interest_signals_session_key")
+      .on(table.sessionHash, table.dimension, table.key)
+      .where(sql`${table.sessionHash} IS NOT NULL`),
     index("user_interest_signals_user_weight_idx").on(table.userId, sql`${table.rawWeight} desc`),
     index("user_interest_signals_session_weight_idx").on(table.sessionHash, sql`${table.rawWeight} desc`),
     index("user_interest_signals_dimension_idx").on(table.dimension, table.key),

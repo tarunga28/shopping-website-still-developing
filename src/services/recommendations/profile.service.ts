@@ -440,12 +440,10 @@ export async function mergeSessionIntoUser(
           lastSeenAt: row.lastSeenAt,
         })
         .onConflictDoUpdate({
-          target: [
-            userInterestSignals.userId,
-            userInterestSignals.sessionHash,
-            userInterestSignals.dimension,
-            userInterestSignals.key,
-          ],
+          // Merging always lands on a user row, so this targets the user-keyed
+          // partial index. Naming the session column here would match no index.
+          target: [userInterestSignals.userId, userInterestSignals.dimension, userInterestSignals.key],
+          targetWhere: sql`${userInterestSignals.userId} IS NOT NULL`,
           set: {
             rawWeight: sql`greatest(0, ${userInterestSignals.rawWeight} + ${Math.max(0, row.rawWeight * discount)})`,
             eventCount: sql`${userInterestSignals.eventCount} + ${row.eventCount}`,

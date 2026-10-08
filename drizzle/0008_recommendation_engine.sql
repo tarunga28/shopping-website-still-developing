@@ -199,8 +199,20 @@ CREATE TABLE IF NOT EXISTS user_interest_signals (
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE cascade
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS user_interest_signals_subject_key
-  ON user_interest_signals (user_id, session_hash, dimension, key);
+-- Two PARTIAL unique indexes, not one composite over (user_id, session_hash,
+-- ...). Exactly one subject column is ever set, so a composite index always
+-- holds a NULL -- and PostgreSQL treats NULLs as distinct, so the index would
+-- never collide and the upsert would insert a new row per event forever.
+--
+-- The composite form is dropped explicitly: an index that can never fire is
+-- pure write overhead, and leaving it behind would let a stale, useless index
+-- survive on any database that had already applied an earlier draft of this
+-- migration.
+DROP INDEX IF EXISTS user_interest_signals_subject_key;
+CREATE UNIQUE INDEX IF NOT EXISTS user_interest_signals_user_key
+  ON user_interest_signals (user_id, dimension, key) WHERE user_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS user_interest_signals_session_key
+  ON user_interest_signals (session_hash, dimension, key) WHERE session_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS user_interest_signals_user_weight_idx
   ON user_interest_signals (user_id, raw_weight DESC);
 CREATE INDEX IF NOT EXISTS user_interest_signals_session_weight_idx

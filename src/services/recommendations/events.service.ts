@@ -219,12 +219,16 @@ export async function applyEventToInterest(
           strongestEvent: input.eventType,
         })
         .onConflictDoUpdate({
-          target: [
-            userInterestSignals.userId,
-            userInterestSignals.sessionHash,
-            userInterestSignals.dimension,
-            userInterestSignals.key,
-          ],
+          /* The conflict target must name the PARTIAL index that actually
+           * covers this subject. Naming a composite that includes the NULL
+           * column matches no index at all, and Postgres then treats every
+           * event as an insert — the row count grows without bound. */
+          target: subject.userId
+            ? [userInterestSignals.userId, userInterestSignals.dimension, userInterestSignals.key]
+            : [userInterestSignals.sessionHash, userInterestSignals.dimension, userInterestSignals.key],
+          targetWhere: subject.userId
+            ? sql`${userInterestSignals.userId} IS NOT NULL`
+            : sql`${userInterestSignals.sessionHash} IS NOT NULL`,
           set: {
             rawWeight: sql`greatest(0, ${userInterestSignals.rawWeight} + ${contribution.weight})`,
             eventCount: sql`${userInterestSignals.eventCount} + 1`,
