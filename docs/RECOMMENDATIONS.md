@@ -302,6 +302,26 @@ npm run recommendations:compute -- --coverage        # report table coverage
 
 Options: `--batch-size <n>`, `--window-days <n>`, `--limit <n>`.
 
+### Acceptance run
+
+```bash
+npm run e2e:recommendations
+```
+
+Walks the §78 scenario end to end against a disposable database: a shopper
+searches, views, filters, wishlists and buys a gaming laptop; the profile must
+reflect it. Other shoppers buy the same laptop alongside a mouse, and a
+co-purchase relationship must emerge with lift above 1. A product page must
+surface similar items *and* frequently-bought accessories — and must not offer
+an accessory as a "similar product". A product that suddenly gets attention
+must surface as trending. 29 checks.
+
+The co-purchase fixture deliberately includes orders that do **not** contain
+the mouse. With every product in every order the mouse's base rate is 1.0, so
+lift is exactly 1.0 and no association is detectable — a degenerate fixture
+rather than a code failure. The filler orders are what make the test mean
+something.
+
 Every stage is idempotent and independently retryable. A stage that fails is
 reported and the run exits non-zero, but the others still complete — a cron job
 that aborts on the first error never catches up.

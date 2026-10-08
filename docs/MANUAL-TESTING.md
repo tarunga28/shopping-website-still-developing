@@ -59,6 +59,7 @@ Run these first; if one is red, stop and fix it before clicking anything.
 | `npm test` | 469 passed, 176 skipped |
 | `npm run test:db` | 176 passed |
 | `npm run e2e:catalog` | 21/21 PASS, `E2E CATALOG: all checks passed` |
+| `npm run e2e:recommendations` | 29/29 PASS, `E2E RECOMMENDATIONS: all checks passed` |
 | `npm run native:test` | 0 failures in both modules |
 | `npm run service:test` | 109 passed |
 | `npm run build` | `✓ Compiled successfully` |
