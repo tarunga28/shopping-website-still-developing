@@ -9,6 +9,10 @@
  *                   relations, event outbox, search index/synonyms/suggestions
  *   search.ts       Part 12: spell-correction vocabulary, search history,
  *                   search click events, ranking configs, experiments
+ *   recommendations.ts
+ *                   Part 13: interest signals/profiles, precomputed similarity
+ *                   and co-purchase, popularity/trending, recommendation
+ *                   requests/events, configs, experiments, metrics
  *   commerce.ts     carts, cart items, wishlists
  *   orders.ts       orders (snapshots), order items, payments, refunds, shipments
  *   pod.ts          POD providers, product/variant mappings, POD orders, POD events
@@ -23,6 +27,7 @@ export * from "./auth";
 export * from "./catalog";
 export * from "./catalog-intelligence";
 export * from "./search";
+export * from "./recommendations";
 
 export * from "./commerce";
 export * from "./orders";

@@ -22,6 +22,7 @@
 !/drizzle/0005_*.sql
 !/drizzle/0006_*.sql
 !/drizzle/0007_*.sql
+!/drizzle/0008_*.sql
 /coverage
 
 # local dev uploads (avatar storage driver: filesystem in dev)

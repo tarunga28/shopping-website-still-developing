@@ -32,6 +32,7 @@ const MIGRATIONS = [
   "0005_product_details.sql",
   "0006_product_intelligence.sql",
   "0007_search_discovery.sql",
+  "0008_recommendation_engine.sql",
 ];
 
 function log(message) {

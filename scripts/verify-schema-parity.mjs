@@ -3,7 +3,7 @@
  *
  * Proves the property that actually protects deploys:
  *
- *   (schema at HEAD) + drizzle/0006 + drizzle/0007  ==  schema in working tree
+ *   (schema at HEAD) + drizzle/0006..0008  ==  schema in working tree
  *
  * It builds two disposable databases — one from the Drizzle tables as they
  * exist now, one from the pre-migration schema plus the committed migration —
@@ -32,6 +32,7 @@ const PASSWORD = "postgres";
 const MIGRATIONS = [
   "0006_product_intelligence.sql",
   "0007_search_discovery.sql",
+  "0008_recommendation_engine.sql",
 ].map((name) => join(ROOT, "drizzle", name));
 
 /** Legitimately present only in the migration-driven database. */

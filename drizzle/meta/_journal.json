@@ -57,6 +57,13 @@
       "when": 1791045600000,
       "tag": "0007_search_discovery",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791132000000,
+      "tag": "0008_recommendation_engine",
+      "breakpoints": true
     }
   ]
 }

@@ -298,4 +298,71 @@ export const analyticsEventTypeEnum = pgEnum("analytics_event_type", [
   "CHECKOUT_STARTED",
   "PURCHASE",
   "WISHLIST_ADD",
+  /* ── Part 13: behavioural signals the recommender learns from ───────────
+   * Added to this enum rather than a parallel table: one append-only event
+   * stream is cheaper to reason about than two, and the recommender is just
+   * another consumer of behaviour the storefront already had. */
+  "PRODUCT_CLICK",
+  "SEARCH_RESULT_CLICK",
+  "WISHLIST_REMOVE",
+  "RETURN",
+  "SHARE",
+  "COMPARE",
+  "CATEGORY_VIEW",
+  "BRAND_VIEW",
+  "FILTER_USED",
+]);
+
+/* ── Part 13: recommendations ─────────────────────────────────────────── */
+
+/**
+ * Which question a recommendation request is answering.
+ *
+ * Kept as an enum rather than a free string because the ranking weights,
+ * diversity budget and exclusion policy are all keyed off it — a caller
+ * inventing a type would silently get the default treatment for every one.
+ */
+export const recommendationTypeEnum = pgEnum("recommendation_type", [
+  "SIMILAR_PRODUCTS",
+  "RELATED_PRODUCTS",
+  "FREQUENTLY_BOUGHT_TOGETHER",
+  "CUSTOMER_ALSO_BOUGHT",
+  "CUSTOMER_ALSO_VIEWED",
+  "TRENDING_PRODUCTS",
+  "POPULAR_IN_CATEGORY",
+  "RECENTLY_VIEWED",
+  "CONTINUE_SHOPPING",
+  "PERSONALIZED_FOR_YOU",
+  "CART_RECOMMENDATIONS",
+  "CHECKOUT_RECOMMENDATIONS",
+  "POST_PURCHASE_RECOMMENDATIONS",
+  "CROSS_SELL",
+  "UPSELL",
+  "NEW_USER_RECOMMENDATIONS",
+  "ANONYMOUS_RECOMMENDATIONS",
+]);
+
+/** What happened to a recommendation after it was shown. */
+export const recommendationEventTypeEnum = pgEnum("recommendation_event_type", [
+  "SHOWN",
+  "CLICKED",
+  "ADDED_TO_CART",
+  "PURCHASED",
+]);
+
+/** The axis a user-interest weight is recorded against. */
+export const interestDimensionEnum = pgEnum("interest_dimension", [
+  "CATEGORY",
+  "BRAND",
+  "PRODUCT",
+  "ATTRIBUTE",
+  "PRICE_BAND",
+  "PRODUCT_TYPE",
+]);
+
+/** Which slice of the catalog a popularity score describes. */
+export const popularityScopeEnum = pgEnum("popularity_scope", [
+  "GLOBAL",
+  "CATEGORY",
+  "BRAND",
 ]);
