@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AdminShell } from "@/components/layouts/admin-shell";
 import { ActionForm } from "@/components/admin/action-form";
+import { InventoryBulkBar } from "@/components/admin/inventory-bulk";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { requireCatalogEditor } from "@/server/auth/catalog-access";
@@ -45,7 +46,11 @@ function qs(current: URLSearchParams, patch: Record<string, string | null>) {
  * never loads a catalog page it is not about to render.
  *
  * Every adjustment posts through the ledger, so the screen cannot create stock
- * the ledger cannot explain.
+ * the ledger cannot explain — for a single row or for a bulk batch.
+ *
+ * Bulk changes act on the variants currently on the page, which is deliberate:
+ * an action that reaches beyond what is visible cannot be checked before it is
+ * confirmed.
  */
 export default async function AdminInventoryPage({
   searchParams,
@@ -123,6 +128,12 @@ export default async function AdminInventoryPage({
         </select>
         <Button type="submit" size="sm">Apply</Button>
       </form>
+
+      <div className="mt-4">
+        <InventoryBulkBar
+          targets={rows.map((row) => ({ productId: row.productId, variantId: row.variantId, sku: row.sku }))}
+        />
+      </div>
 
       <div className="mt-4 overflow-x-auto rounded-card border-[1.5px] border-clay">
         <table className="w-full min-w-[52rem] text-sm">

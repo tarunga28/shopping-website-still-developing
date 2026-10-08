@@ -162,6 +162,39 @@ export const inventoryAdjustSchema = z.object({
   referenceId: z.string().trim().max(64).optional().or(z.literal("")),
 });
 
+/**
+ * One stock movement applied to many variants at once.
+ *
+ * Deliberately narrower than `inventoryAdjustSchema`: only the operations where
+ * "do this to all of them" makes sense. SALE, RETURN, CANCELLATION, RESERVED and
+ * RELEASED describe what happened to one specific order, so applying them in
+ * bulk would write ledger rows that cannot be traced to anything real.
+ *
+ * The quantity is a single magnitude applied per variant rather than a total to
+ * divide up, because splitting a number across variants by rounding would leave
+ * the ledger unable to explain the individual balances.
+ */
+export const bulkInventorySchema = z.object({
+  operation: z.enum(["STOCK_IN", "MANUAL_ADJUSTMENT", "DAMAGE"]),
+  /** Per-variant magnitude. Signed for MANUAL_ADJUSTMENT, positive otherwise. */
+  quantity: z
+    .number()
+    .int()
+    .min(-100_000)
+    .max(100_000)
+    .refine((value) => value !== 0, "Quantity cannot be zero."),
+  targets: z
+    .array(z.object({ productId: id, variantId: id }))
+    .min(1)
+    .max(100),
+  reason: z.string().trim().min(1, "A bulk stock change needs a reason.").max(500),
+  referenceType: z.enum(INVENTORY_REFERENCE_TYPES).optional(),
+  /** One key shared by the batch, so a replayed request is a no-op per variant. */
+  referenceId: z.string().trim().max(64).optional().or(z.literal("")),
+  /** Must equal `bulkInventoryPhrase(operation, targets.length)`. */
+  confirmation: z.string().trim().max(40),
+});
+
 export const inventorySetSchema = z.object({
   variantId: id,
   /** Absolute target; the service derives the movement from the current stock. */

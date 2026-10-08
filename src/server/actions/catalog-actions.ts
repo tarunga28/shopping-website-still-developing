@@ -31,6 +31,7 @@ import {
 } from "@/services/catalog-admin.service";
 import {
   brandWriteSchema,
+  bulkInventorySchema,
   bulkSchema,
   categoryWriteSchema,
   collectionWriteSchema,
@@ -40,6 +41,10 @@ import {
 } from "@/validations/catalog";
 import { createBrand, deactivateBrand, updateBrand } from "@/services/catalog/brand.service";
 import { adjustInventory } from "@/services/catalog/inventory.service";
+import {
+  assertBulkInventoryConfirmation,
+  type BulkInventoryOperation,
+} from "@/lib/catalog-rules";
 
 export type CatalogActionResult = { ok: true; message?: string; id?: string } | { ok: false; error: string };
 
@@ -456,4 +461,77 @@ export async function adjustInventoryAction(_prev: CatalogActionResult | null, f
   } catch (error) {
     return fail(error);
   }
+}
+
+/**
+ * Apply one stock movement to many variants.
+ *
+ * Each variant is adjusted in its own transaction rather than all in one, so a
+ * variant that legitimately cannot take the movement — a sale larger than the
+ * balance, a variant retired between page load and submit — is skipped and
+ * reported instead of rolling back the whole batch. Partial success is the
+ * useful outcome here; the alternative is one bad row blocking a 100-variant
+ * restock.
+ *
+ * What must never happen is a silent skip, so the failures are returned to the
+ * editor with the reason attached.
+ */
+export async function bulkInventoryAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
+  const rawTargets = form.getAll("targets");
+  const targets: { productId: string; variantId: string }[] = [];
+  for (const entry of rawTargets) {
+    if (typeof entry !== "string") continue;
+    const [productId, variantId] = entry.split(":");
+    if (productId && variantId) targets.push({ productId, variantId });
+  }
+
+  const operation = text(form, "operation");
+  const parsed = bulkInventorySchema.safeParse({
+    operation,
+    quantity: Number(text(form, "quantity") || "0"),
+    targets,
+    reason: text(form, "reason"),
+    referenceType: text(form, "referenceType"),
+    referenceId: text(form, "referenceId"),
+    confirmation: text(form, "confirmation"),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the bulk action." };
+
+  try {
+    assertBulkInventoryConfirmation(
+      parsed.data.operation as BulkInventoryOperation,
+      parsed.data.targets.length,
+      parsed.data.confirmation,
+    );
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Confirmation did not match." };
+  }
+
+  const user = await actor();
+  const { targets: batch, ...movement } = parsed.data;
+
+  let applied = 0;
+  const failures: string[] = [];
+
+  for (const target of batch) {
+    try {
+      await adjustInventory({ id: user.id }, { ...movement, ...target });
+      applied += 1;
+    } catch (error) {
+      failures.push(error instanceof AppError ? error.message : "Unexpected error.");
+    }
+  }
+
+  refresh(["/admin/inventory", "/admin/products"]);
+
+  if (applied === 0) {
+    return { ok: false, error: `Nothing changed. ${failures[0] ?? "Every variant was skipped."}` };
+  }
+  if (failures.length > 0) {
+    return {
+      ok: true,
+      message: `${applied} variant${applied === 1 ? "" : "s"} updated. ${failures.length} skipped: ${failures[0]}`,
+    };
+  }
+  return { ok: true, message: `${applied} variant${applied === 1 ? "" : "s"} updated.` };
 }
