@@ -3,21 +3,24 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import {
   BarChart3,
+  Boxes,
   FolderOpen,
   Layers,
   Paintbrush,
   Package,
   Percent,
+  Search,
   Settings,
   ShoppingCart,
+  Tags,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
 /**
  * Admin layout shell — dark sidebar + content frame for the back-office
- * surface. Menu structure mirrors the modules of the future admin
- * milestone; items are disabled placeholders until routes exist.
+ * surface. Menu structure mirrors the modules of the admin milestone; items
+ * without an href are disabled placeholders until the route exists.
  */
 
 const adminNav: { section: string; items: { label: string; icon: LucideIcon; href?: string }[] }[] = [
@@ -27,6 +30,8 @@ const adminNav: { section: string; items: { label: string; icon: LucideIcon; hre
       { label: "Orders", icon: ShoppingCart },
       { label: "Products", href: "/admin/products", icon: Package },
       { label: "Categories", href: "/admin/categories", icon: FolderOpen },
+      { label: "Brands", href: "/admin/brands", icon: Tags },
+      { label: "Inventory", href: "/admin/inventory", icon: Boxes },
       { label: "Collections", href: "/admin/collections", icon: Layers },
       { label: "Designs", icon: Paintbrush },
     ],
@@ -34,6 +39,7 @@ const adminNav: { section: string; items: { label: string; icon: LucideIcon; hre
   {
     section: "Growth",
     items: [
+      { label: "Search", href: "/admin/search", icon: Search },
       { label: "Customers", icon: Users },
       { label: "Coupons", icon: Percent },
       { label: "Analytics", icon: BarChart3 },

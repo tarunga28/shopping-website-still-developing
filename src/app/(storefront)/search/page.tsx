@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
-import { CatalogLoadError } from "@/components/catalog/catalog-states";
+import { Suspense } from "react";
+
 import { CatalogIntro } from "@/components/storefront/catalog-intro";
-import { SearchForm } from "@/components/storefront/search-form";
+import { SearchResults } from "@/components/search/search-results";
 import { Container } from "@/components/ui/container";
-import { EmptySearch } from "@/components/ui/empty-state";
-import { ProductCard } from "@/components/ui/product-card";
+import { Spinner } from "@/components/ui/spinner";
 import { searchMetadata } from "@/lib/seo";
 import { sanitizeSearchQuery } from "@/lib/slug";
-import { getSavedProductIds, loadSearch } from "@/services/storefront.service";
+
+/**
+ * The search page.
+ *
+ * The shell is a server component so metadata and the page frame render without
+ * JavaScript; the interactive part (query, filters, sort, results) is a client
+ * component suspended inside it. That split keeps first paint fast while still
+ * letting the whole search state live in the URL.
+ */
 
 export async function generateMetadata({
   searchParams,
@@ -25,42 +33,25 @@ export default async function SearchPage({
 }) {
   const params = await searchParams;
   const query = sanitizeSearchQuery(typeof params.q === "string" ? params.q : params.q?.[0]);
-  const [savedIds, results] = await Promise.all([
-    getSavedProductIds().catch(() => [] as string[]),
-    query.length >= 2 ? loadSearch(query) : Promise.resolve(null),
-  ]);
-  const saved = new Set(savedIds);
 
   return (
     <>
       <CatalogIntro
         eyebrow="Search"
         title={query ? `Results for “${query}”` : "Search"}
-        description="Search published names, slugs, tags and categories. This is a simple match, not a full search engine."
-        crumbs={[
-          { label: "Home", href: "/" },
-          { label: "Search" },
-        ]}
+        description="Search by product, brand, category, attribute, SKU, or barcode. Try “gaming laptop under 70000” or “black shoes size 9”."
+        crumbs={[{ label: "Home", href: "/" }, { label: "Search" }]}
       />
       <Container className="py-10 md:py-14">
-        <SearchForm initialQuery={query} />
-        <div className="mt-10">
-          {query.length > 0 && query.length < 2 ? (
-            <EmptySearch query={query} />
-          ) : results?.status === "error" ? (
-            <CatalogLoadError />
-          ) : results && results.data.length === 0 ? (
-            <EmptySearch query={query} />
-          ) : results ? (
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 xl:grid-cols-4">
-              {results.data.map((product, index) => (
-                <li key={product.id}>
-                  <ProductCard product={product} saved={saved.has(product.id)} priority={index < 4} />
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
+        <Suspense
+          fallback={
+            <div className="flex justify-center py-16" aria-busy>
+              <Spinner label="Loading search" />
+            </div>
+          }
+        >
+          <SearchResults />
+        </Suspense>
       </Container>
     </>
   );

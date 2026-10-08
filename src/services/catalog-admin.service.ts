@@ -31,6 +31,7 @@ import {
   tags,
 } from "@/db/schema";
 import { withTransaction, type DbClient } from "@/db/utils";
+import { locationForChild, relocateCategory } from "@/services/catalog/category.service";
 import { hasProductDetails, type ProductDetails } from "@/lib/catalog/product-details";
 import { sizeChartSchema } from "@/lib/catalog/size-chart";
 import { inspectProductImage } from "@/lib/image-file";
@@ -895,19 +896,28 @@ export async function createCategory(actor: CatalogActor, input: CategoryWriteIn
     .where(eq(categorySlugHistory.slug, slug))
     .limit(1);
   if (reserved) throw new ValidationError("That slug is reserved by an older public link. Choose another.");
+  const parentId = empty(input.parentId);
+  // Materialized path is derived from the parent chain, never supplied by the client.
+  const location = await locationForChild(parentId, slug);
   const [row] = await db
     .insert(categories)
     .values({
       name: input.name.trim(),
       slug,
+      path: location.path,
+      depth: location.depth,
+      ancestorIds: location.ancestorIds,
       description: empty(input.description),
-      parentId: empty(input.parentId),
+      parentId,
       seoTitle: empty(input.seoTitle),
       seoDescription: empty(input.seoDescription),
       displayOrder: input.displayOrder,
       isActive: true,
     })
-    .returning({ id: categories.id })
+    // `path` and `depth` are returned because they are server-derived: a caller
+    // that creates a category has no other way to learn where it landed in the
+    // tree, and the materialized path is what the storefront routes on.
+    .returning({ id: categories.id, path: categories.path, depth: categories.depth })
     .catch(rethrowUnique);
   if (!row) throw new ValidationError("The category could not be created.");
   await audit(actor, "category.changed", "category", row.id, { created: true });
@@ -928,6 +938,8 @@ export async function updateCategory(actor: CatalogActor, id: string, input: Cat
   if (wouldCreateCategoryCycle(id, parentId, parentOf)) throw new ValidationError("A category cannot be its own parent.");
   await withTransaction(async (tx) => {
     await recordSlugChange(tx, "category", id, current.slug, slug);
+    // Rewrite the materialized path of this node and every descendant.
+    await relocateCategory(tx, id, { parentId, slug });
     await tx
       .update(categories)
       .set({

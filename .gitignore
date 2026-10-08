@@ -20,6 +20,7 @@
 !/drizzle/0003_*.sql
 !/drizzle/0004_*.sql
 !/drizzle/0005_*.sql
+!/drizzle/0006_*.sql
 /coverage
 
 # local dev uploads (avatar storage driver: filesystem in dev)
@@ -39,3 +40,18 @@ yarn-error.log*
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# scratch / verification artifacts
+/.arena
+/.parity
+/.parity-*
+/.test-db
+/.test-db-*
+/native/*/build
+/native/*/*.so
+/native/*/*.o
+/native/c-importer/catalog-import
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

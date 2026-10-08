@@ -82,8 +82,18 @@ describe.skipIf(!enabled)("product detail page (PostgreSQL)", () => {
     const { db } = m;
     const { categories, collections, colors, products, productVariants, images, productCategories, productCollections, tags, productTags } = schema;
 
+    // `path` is the materialized slug chain; fixtures build it the same way the
+    // category service does so the tree columns stay consistent.
+    const catPaths = new Map<string, string>();
     const cat = async (key: string, values: Partial<typeof categories.$inferInsert> = {}) => {
-      const [row] = await db.insert(categories).values({ name: `${P} ${key}`, slug: slug(key), ...values }).returning({ id: categories.id });
+      const parentPath = values.parentId ? catPaths.get(values.parentId) : undefined;
+      const categorySlug = (values.slug as string | undefined) ?? slug(key);
+      const path = parentPath ? `${parentPath}/${categorySlug}` : categorySlug;
+      catPaths.set(key, path);
+      const [row] = await db
+        .insert(categories)
+        .values({ name: `${P} ${key}`, slug: categorySlug, path, ...values })
+        .returning({ id: categories.id });
       catIds[key] = row!.id;
     };
     await cat("apparel");

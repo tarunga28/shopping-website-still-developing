@@ -30,12 +30,16 @@ import {
   uploadProductImage,
 } from "@/services/catalog-admin.service";
 import {
+  brandWriteSchema,
   bulkSchema,
   categoryWriteSchema,
   collectionWriteSchema,
+  inventoryAdjustSchema,
   productWriteSchema,
   variantWriteSchema,
 } from "@/validations/catalog";
+import { createBrand, deactivateBrand, updateBrand } from "@/services/catalog/brand.service";
+import { adjustInventory } from "@/services/catalog/inventory.service";
 
 export type CatalogActionResult = { ok: true; message?: string; id?: string } | { ok: false; error: string };
 
@@ -380,6 +384,76 @@ export async function createColorAction(_prev: CatalogActionResult | null, form:
     return { ok: true, message: "Color added to the catalog." };
   } catch (error) {
     if (error instanceof ValidationError) return fail(error);
+    return fail(error);
+  }
+}
+
+/* ── Brands ─────────────────────────────────────────────────────────── */
+
+export async function saveBrandAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
+  const id = text(form, "id");
+  const parsed = brandWriteSchema.safeParse({
+    name: text(form, "name"),
+    slug: text(form, "slug"),
+    description: text(form, "description"),
+    logoUrl: text(form, "logoUrl"),
+    bannerUrl: text(form, "bannerUrl"),
+    website: text(form, "website"),
+    seoTitle: text(form, "seoTitle"),
+    seoDescription: text(form, "seoDescription"),
+    displayOrder: Number(text(form, "displayOrder") || "0"),
+    isActive: form.get("isActive") === "on",
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the brand." };
+  try {
+    const user = await actor();
+    if (id) await updateBrand(id, parsed.data, { actorId: user.id });
+    else await createBrand(parsed.data, { actorId: user.id });
+    refresh(["/admin/brands", "/admin/products"]);
+    return { ok: true, message: id ? "Brand saved." : "Brand created." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Deactivate rather than delete: products keep their brand reference, so a
+ * mis-click does not orphan catalog history.
+ */
+export async function deactivateBrandAction(id: string): Promise<CatalogActionResult> {
+  try {
+    const user = await actor();
+    await deactivateBrand(id, { actorId: user.id });
+    refresh(["/admin/brands"]);
+    return { ok: true, message: "Brand deactivated." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/* ── Inventory ──────────────────────────────────────────────────────── */
+
+export async function adjustInventoryAction(_prev: CatalogActionResult | null, form: FormData): Promise<CatalogActionResult> {
+  // The schema deliberately has no productId: the REST route takes it from the
+  // URL path. A form action has no path segment, so it is read here and joined
+  // back on — one schema, two callers, no duplicated validation rules.
+  const productId = text(form, "productId");
+  const parsed = inventoryAdjustSchema.safeParse({
+    variantId: text(form, "variantId"),
+    operation: text(form, "operation"),
+    quantity: Number(text(form, "quantity") || "0"),
+    reason: text(form, "reason"),
+    referenceType: text(form, "referenceType"),
+    referenceId: text(form, "referenceId"),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the adjustment." };
+  if (!productId) return { ok: false, error: "Product is required." };
+  try {
+    const user = await actor();
+    await adjustInventory({ id: user.id }, { ...parsed.data, productId });
+    refresh(["/admin/inventory", "/admin/products"]);
+    return { ok: true, message: "Stock adjusted." };
+  } catch (error) {
     return fail(error);
   }
 }

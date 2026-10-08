@@ -53,8 +53,18 @@ describe.skipIf(!enabled)("catalog browsing (PostgreSQL)", () => {
     const { db } = s;
     const { categories, collections, products, productVariants, images, productCategories, productCollections, designs, productDesigns } = schema;
 
+    // `path` is the materialized slug chain; fixtures build it the same way the
+    // service does so the tree columns stay consistent.
+    const catPaths = new Map<string, string>();
     const insertCategory = async (key: string, values: Partial<typeof categories.$inferInsert> = {}) => {
-      const [row] = await db.insert(categories).values({ name: `${P} ${key}`, slug: slug(key), ...values }).returning({ id: categories.id });
+      const parentPath = values.parentId ? catPaths.get(values.parentId) : undefined;
+      const categorySlug = (values.slug as string | undefined) ?? slug(key);
+      const path = parentPath ? `${parentPath}/${categorySlug}` : categorySlug;
+      catPaths.set(key, path);
+      const [row] = await db
+        .insert(categories)
+        .values({ name: `${P} ${key}`, slug: categorySlug, path, ...values })
+        .returning({ id: categories.id });
       catIds[key] = row!.id;
     };
     await insertCategory("cat-a");
