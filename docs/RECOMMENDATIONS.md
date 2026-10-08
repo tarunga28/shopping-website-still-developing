@@ -288,7 +288,43 @@ offline job has run.
 
 ---
 
-## 12. Offline jobs
+## 12. Caching
+
+The cache holds **candidate seeds, not recommendation results**, and that
+distinction is the whole design.
+
+A seed is `{ productId, source, strength }` — an id and a number. It contains
+no price, no stock, no image. Caching it therefore *cannot* serve stale
+inventory, which is the specific hazard worth designing out. Price and stock
+are read live during hydration on every request.
+
+Ranking is never cached. It depends on the shopper's profile and the current
+basket, so caching it would serve one shopper's rail to another.
+
+Only types whose candidate set is a pure function of the seed are cached —
+similarity, related, frequently-bought, also-bought, also-viewed, cross-sell,
+upsell, trending, popular-in-category. That is an **allowlist**, deliberately:
+`PERSONALIZED_FOR_YOU`, `CART_*` and friends depend on who is asking, and a
+seed-only key would be wrong for them in the dangerous direction — the wrong
+shopper's recommendations, served with a 200.
+
+| Setting | Value |
+|---|---|
+| Tag | `catalog` — a catalog write expires recommendations too |
+| TTL | 300s, bounding staleness after an offline job run or direct SQL edit |
+| Key | `rec:candidates` + type + productId + categoryId + candidateLimit |
+
+The request row records a truthful `HIT` / `MISS` / `SKIP`, where `SKIP` means
+the type is subject-dependent and is never cached. The dashboard's cache hit
+rate is measured over `HIT` + `MISS` only — counting `SKIP` in the denominator
+would report a rate that can never reach 100%.
+
+Rails themselves are `cache: "no-store"` at the HTTP layer, so a shared CDN
+cache cannot serve one shopper's rail to another.
+
+---
+
+## 13. Offline jobs
 
 ```bash
 npm run recommendations:compute                      # everything
@@ -332,7 +368,7 @@ it should prevent.
 
 ---
 
-## 13. The dashboard's most important number is not CTR
+## 14. The dashboard's most important number is not CTR
 
 `/admin/recommendations` leads with **coverage** and **fallback rate**.
 
@@ -343,7 +379,7 @@ stopped running; CTR falling is the late one.
 
 ---
 
-## 14. Debugger
+## 15. Debugger
 
 ```
 GET /api/admin/recommendations/debug?view=trace&type=cross-sell&productId=<id>
@@ -361,7 +397,7 @@ check.
 
 ---
 
-## 15. ML-ready seam
+## 16. ML-ready seam
 
 `RecommendationModel` (in `src/lib/recommendations/types.ts`) separates
 `generateCandidates`, `scoreCandidates`, `rankCandidates` and
@@ -374,14 +410,14 @@ No learned model is implemented, and none is stubbed out to look like one.
 
 ---
 
-## 16. Environment variables
+## 17. Environment variables
 
 No new required variables. The engine reads `DATABASE_URL` and reuses
 `SEARCH_SESSION_SALT` for the salted anonymous session hash.
 
 ---
 
-## 17. Known limitations
+## 18. Known limitations
 
 - **Co-view has no dedicated table.** `CUSTOMER_ALSO_VIEWED` currently
   approximates from similarity plus popularity. View-pair volume would justify

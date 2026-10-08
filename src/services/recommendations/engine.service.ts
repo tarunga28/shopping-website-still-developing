@@ -35,6 +35,11 @@ import type {
   ScoredCandidate,
 } from "@/lib/recommendations/types";
 import {
+  cachedCandidates,
+  candidateCacheKey,
+  isCacheableType,
+} from "./cached.service";
+import {
   DEFAULT_CANDIDATE_POOL,
   DEFAULT_RECOMMENDATION_LIMIT,
   MAX_CANDIDATE_POOL,
@@ -751,12 +756,33 @@ export async function recommend(
   let strategy = "empty";
   let degraded = false;
   let fallbackReason: string | null = null;
+  let cacheStatus: "HIT" | "MISS" | "SKIP" = "SKIP";
 
   // ── Rung 1: the strategy this type actually calls for ──────────────────
   try {
-    const generated = await generateCandidates(input, client);
-    seeds = generated.seeds;
-    strategy = generated.strategy;
+    /* Candidate seeds are cached for the types whose candidate set is a pure
+     * function of the seed. A seed is an id plus a strength — no price, no
+     * stock — so a cached entry cannot serve stale inventory; price and stock
+     * are read live during hydration. Ranking stays per-request, because it
+     * depends on the shopper. */
+    if (isCacheableType(type)) {
+      const generated = await cachedCandidates(
+        candidateCacheKey(type, {
+          productId: input.productId,
+          categoryId: input.categoryId,
+          candidateLimit: input.candidateLimit,
+        }),
+        () => generateCandidates(input, client),
+      );
+      seeds = generated.value.seeds;
+      strategy = generated.value.strategy;
+      cacheStatus = generated.fromCache ? "HIT" : "MISS";
+    } else {
+      const generated = await generateCandidates(input, client);
+      seeds = generated.seeds;
+      strategy = generated.strategy;
+      cacheStatus = "SKIP";
+    }
   } catch (error) {
     degraded = true;
     fallbackReason = "candidate-generation-failed";
@@ -970,7 +996,7 @@ export async function recommend(
         candidateCount: candidates.length,
         resultCount: items.length,
         tookMs,
-        cacheStatus: "MISS",
+        cacheStatus,
         fallbackUsed: degraded,
         fallbackReason,
       },

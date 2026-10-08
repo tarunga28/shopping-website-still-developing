@@ -31,6 +31,8 @@ export interface DashboardOverview {
   fallbackRate: number;
   averageLatencyMs: number;
   zeroResultRate: number;
+  /** Candidate-set cache hits over cacheable requests. */
+  cacheHitRate: number;
 }
 
 export interface TypePerformanceRow {
@@ -201,7 +203,7 @@ export function RecommendationDashboard({
             icon={fallbackHigh ? AlertTriangle : CheckCircle2}
             label="Fallback rate"
             value={percent(overview.fallbackRate)}
-            hint={`${compact(overview.requests)} requests · p50 ${overview.averageLatencyMs}ms`}
+            hint={`${compact(overview.requests)} requests · p50 ${overview.averageLatencyMs}ms · cache ${percent(overview.cacheHitRate)}`}
           />
         </div>
       ) : null}

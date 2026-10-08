@@ -137,6 +137,8 @@ export interface RecommendationOverview {
   averageLatencyMs: number;
   /** Share of requests that returned nothing at all. */
   zeroResultRate: number;
+  /** Candidate-set cache hits over cacheable requests. */
+  cacheHitRate: number;
 }
 
 /**
@@ -174,11 +176,18 @@ export async function recommendationOverview(
     requests: number;
     fallbacks: number;
     zero_results: number;
+    cache_hits: number;
+    cacheable_requests: number;
     avg_latency: number | null;
   }>(sql`
     select count(*)::int as requests,
            count(*) filter (where fallback_used)::int as fallbacks,
            count(*) filter (where result_count = 0)::int as zero_results,
+           count(*) filter (where cache_status = 'HIT')::int as cache_hits,
+           -- HIT and MISS are the only cacheable outcomes; SKIP means the type
+           -- is subject-dependent and is never cached, so counting it in the
+           -- denominator would report a hit rate that can never reach 100%.
+           count(*) filter (where cache_status in ('HIT','MISS'))::int as cacheable_requests,
            avg(took_ms)::real as avg_latency
       from recommendation_requests
      where created_at >= ${since}
@@ -205,6 +214,11 @@ export async function recommendationOverview(
     fallbackRate: totalRequests > 0 ? Number(((requests?.fallbacks ?? 0) / totalRequests).toFixed(4)) : 0,
     zeroResultRate: totalRequests > 0 ? Number(((requests?.zero_results ?? 0) / totalRequests).toFixed(4)) : 0,
     averageLatencyMs: Math.round(requests?.avg_latency ?? 0),
+    // Measured over cacheable requests only, so the figure is reachable.
+    cacheHitRate:
+      (requests?.cacheable_requests ?? 0) > 0
+        ? Number(((requests?.cache_hits ?? 0) / requests!.cacheable_requests).toFixed(4))
+        : 0,
   };
 }
 
